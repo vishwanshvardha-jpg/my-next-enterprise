@@ -72,6 +72,8 @@ export function TrackList({
         onPause={onPause}
         likedSongIds={likedSongIds}
         onToggleLike={onToggleLike}
+        onAddToPlaylist={onAddToPlaylist}
+        playlists={playlists}
       />
     )
   }

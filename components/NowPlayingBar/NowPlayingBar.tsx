@@ -1,54 +1,39 @@
 "use client"
 
-import { Music, Pause, Play, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react"
+import { Music, Pause, Play, SkipBack, SkipForward, Volume2, VolumeX, ListMusic, Repeat, Shuffle } from "lucide-react"
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
-import type { iTunesTrack } from "lib/itunes"
+import { usePlaybackStore } from "lib/store"
 
-interface NowPlayingBarProps {
-  track: iTunesTrack | null
-  isPlaying: boolean
-  audioRef: React.RefObject<HTMLAudioElement | null>
-  onPlayPause: () => void
-  onNext: () => void
-  onPrev: () => void
-  hasNext: boolean
-  hasPrev: boolean
-}
+export function NowPlayingBar() {
+  const { 
+    currentTrack: track, 
+    isPlaying, 
+    audio, 
+    togglePlay, 
+    next: onNext, 
+    prev: onPrev,
+    currentList,
+  } = usePlaybackStore()
 
-export function NowPlayingBar({
-  track,
-  isPlaying,
-  audioRef,
-  onPlayPause,
-  onNext,
-  onPrev,
-  hasNext,
-  hasPrev,
-}: NowPlayingBarProps) {
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
   const progressBarRef = useRef<HTMLDivElement>(null)
 
+  const currentIndex = track ? currentList.findIndex(t => t.trackId === track.trackId) : -1
+  const hasNext = currentIndex !== -1 && currentIndex < currentList.length - 1
+  const hasPrev = currentIndex > 0
+
   useEffect(() => {
-    const audio = audioRef.current
     if (!audio) return
 
-    const handleTimeUpdate = () => {
-      setProgress(audio.currentTime)
-    }
-
-    const handleLoadedMetadata = () => {
-      setDuration(audio.duration)
-    }
-
+    const handleTimeUpdate = () => setProgress(audio.currentTime)
+    const handleLoadedMetadata = () => setDuration(audio.duration)
     const handleEnded = () => {
       setProgress(0)
-      if (hasNext) {
-        onNext()
-      }
+      if (hasNext) onNext()
     }
 
     audio.addEventListener("timeupdate", handleTimeUpdate)
@@ -60,134 +45,113 @@ export function NowPlayingBar({
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata)
       audio.removeEventListener("ended", handleEnded)
     }
-  }, [audioRef, hasNext, onNext])
+  }, [audio, hasNext, onNext])
 
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume
+    if (audio) {
+      audio.volume = isMuted ? 0 : volume
     }
-  }, [volume, isMuted, audioRef])
+  }, [volume, isMuted, audio])
 
   if (!track) return null
 
-  const albumImage = track.artworkUrl100
-  const artistNames = track.artistName
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0
 
   const formatTime = (seconds: number) => {
     const s = Math.floor(seconds || 0)
-    return `0:${s.toString().padStart(2, "0")}`
+    const mins = Math.floor(s / 60)
+    const secs = s % 60
+    return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!progressBarRef.current || !audioRef.current || !duration) return
+    if (!progressBarRef.current || !audio || !duration) return
     const rect = progressBarRef.current.getBoundingClientRect()
     const percent = (e.clientX - rect.left) / rect.width
-    const targetTime = percent * duration
-    audioRef.current.currentTime = targetTime
+    const targetTime = Math.max(0, Math.min(percent * duration, duration))
+    audio.currentTime = targetTime
     setProgress(targetTime)
   }
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVol = parseFloat(e.target.value)
-    setVolume(newVol)
-    if (newVol > 0) setIsMuted(false)
-  }
-
-  const toggleMute = () => {
-    setIsMuted(!isMuted)
-  }
-
   return (
-    <div
-      id="now-playing-bar"
-      className="bg-aura-bg border-t border-white/5 fixed right-0 bottom-0 left-0 z-[60] text-white shadow-[0_-20px_50px_rgba(0,0,0,0.8)] backdrop-blur-3xl"
-    >
-      {/* Progress Bar */}
-      <div
-        ref={progressBarRef}
-        className="group relative h-1 w-full cursor-pointer bg-white/5"
-        onClick={handleSeek}
-      >
-        <div
-          className="bg-aura-primary absolute inset-y-0 left-0 z-10 shadow-[0_0_15px_#ef5b1e]"
-          style={{ width: `${progressPercent}%` }}
-        >
-          {/* Neon Knob */}
-          <div className="absolute top-1/2 right-0 h-4 w-4 -translate-y-1/2 rounded-full bg-white scale-0 group-hover:scale-100 transition-transform duration-200 border-2 border-aura-primary shadow-[0_0_10px_#ef5b1e]" />
-        </div>
-      </div>
-
-      <div className="mx-auto flex h-[96px] max-w-screen-2xl items-center justify-between px-6 py-4">
+    <div className="fixed bottom-0 left-0 right-0 z-[100] p-4 lg:px-8">
+      <div className="mx-auto max-w-7xl glass-dark rounded-[2.5rem] p-4 lg:p-6 shadow-2xl flex items-center justify-between gap-8 h-24 lg:h-28">
+        
         {/* Track Info */}
-        <div className="flex min-w-0 flex-1 items-center gap-5">
-          <div className="relative h-[64px] w-[64px] flex-shrink-0 overflow-hidden rounded-xl border-2 border-white/5 shadow-2xl group cursor-pointer">
-            {albumImage ? (
-              <Image
-                src={albumImage.replace("100x100bb.jpg", "600x600bb.jpg")}
-                alt={`${track.trackName} album art`}
-                fill
-                sizes="64px"
-                className="object-cover group-hover:scale-110 transition-transform duration-500"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center bg-aura-surface">
-                <Music className="h-6 w-6 text-aura-primary/50" />
-              </div>
-            )}
+        <div className="flex items-center gap-4 min-w-0 flex-1 lg:flex-none lg:w-[30%]">
+          <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl shadow-lg border border-white/10 group">
+            <Image
+              src={track.artworkUrl100.replace("100x100bb.jpg", "400x400bb.jpg")}
+              alt={track.trackName}
+              fill
+              className="object-cover group-hover:scale-110 transition-transform duration-500"
+            />
           </div>
-          <div className="flex min-w-0 flex-col justify-center">
-            <p className="truncate text-base font-black tracking-tight text-white hover:text-aura-primary transition-colors cursor-pointer">
+          <div className="min-w-0">
+            <h4 className="font-display font-bold text-white truncate text-base mb-1 hover:text-aura-primary transition-colors cursor-pointer">
               {track.trackName}
-            </p>
-            <p className="mt-1 truncate text-[11px] font-black uppercase tracking-[0.15em] text-aura-secondary/80">
-              {artistNames}
+            </h4>
+            <p className="text-xs font-medium text-aura-muted truncate uppercase tracking-widest leading-none">
+              {track.artistName}
             </p>
           </div>
         </div>
 
-        {/* Controls (Center) */}
-        <div className="flex max-w-[400px] flex-1 flex-col items-center justify-center">
-          <div className="flex items-center gap-8 mb-2">
+        {/* Player Controls */}
+        <div className="flex-1 flex flex-col items-center max-w-2xl">
+          <div className="flex items-center gap-6 mb-3">
+            <button className="text-aura-muted hover:text-white transition-colors">
+              <Shuffle size={16} />
+            </button>
             <button
               onClick={onPrev}
               disabled={!hasPrev}
-              className="text-slate-400 transition-colors hover:text-white disabled:opacity-30 disabled:hover:text-slate-400"
-              aria-label="Previous track"
+              className="text-white transition-colors hover:text-aura-primary disabled:opacity-20"
             >
-              <SkipBack className="h-5 w-5 fill-current" />
+              <SkipBack className="h-6 w-6 fill-current" />
             </button>
-
             <button
-              id="now-playing-play-pause"
-              onClick={onPlayPause}
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-aura-primary text-white shadow-lg shadow-aura-primary/40 transition-all hover:scale-110 hover:bg-aura-accent active:scale-95"
-              aria-label={isPlaying ? "Pause" : "Play"}
+              onClick={togglePlay}
+              className="h-12 w-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl"
             >
-              {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="ml-1 h-5 w-5 fill-current" />}
+              {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
             </button>
-
             <button
               onClick={onNext}
               disabled={!hasNext}
-              className="text-slate-400 transition-colors hover:text-white disabled:opacity-30 disabled:hover:text-slate-400"
-              aria-label="Next track"
+              className="text-white transition-colors hover:text-aura-primary disabled:opacity-20"
             >
-              <SkipForward className="h-5 w-5 fill-current" />
+              <SkipForward className="h-6 w-6 fill-current" />
+            </button>
+            <button className="text-aura-muted hover:text-white transition-colors">
+              <Repeat size={16} />
             </button>
           </div>
-
-          <div className="mt-2 flex w-full items-center justify-between gap-2 font-mono text-[11px] tracking-wider text-slate-400 tabular-nums">
-            <span className="w-10 text-right">{formatTime(progress)}</span>
-            <span className="w-10 text-left">{formatTime(duration)}</span>
+          
+          <div className="w-full flex items-center gap-3">
+            <span className="text-[10px] font-mono text-aura-muted w-8 text-right">{formatTime(progress)}</span>
+            <div 
+              ref={progressBarRef}
+              onClick={handleSeek}
+              className="flex-1 h-1.5 bg-white/10 rounded-full cursor-pointer group relative overflow-hidden"
+            >
+              <div 
+                className="absolute inset-y-0 left-0 bg-white group-hover:bg-aura-primary transition-colors"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-mono text-aura-muted w-8">{formatTime(duration)}</span>
           </div>
         </div>
 
-        {/* Extra Controls */}
-        <div className="hidden lg:flex flex-1 items-center justify-end gap-6 pl-4">
-          <div className="group flex w-40 items-center gap-3 bg-white/5 p-2 px-4 rounded-full border border-white/5">
-            <button onClick={toggleMute} className="text-aura-secondary hover:text-white transition-colors">
-              {isMuted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        {/* Volume & Queue */}
+        <div className="hidden lg:flex items-center justify-end gap-6 w-[30%]">
+          <button className="text-aura-muted hover:text-white transition-colors">
+            <ListMusic size={20} />
+          </button>
+          <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/5 w-32 group">
+            <button onClick={() => setIsMuted(!isMuted)} className="text-aura-muted group-hover:text-white transition-colors">
+              {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
             <input
               type="range"
@@ -195,8 +159,8 @@ export function NowPlayingBar({
               max="1"
               step="0.01"
               value={isMuted ? 0 : volume}
-              onChange={handleVolumeChange}
-              className="w-full h-1 accent-aura-primary cursor-pointer opacity-80 group-hover:opacity-100 transition-opacity"
+              onChange={(e) => setVolume(parseFloat(e.target.value))}
+              className="w-full h-1 accent-white cursor-pointer"
             />
           </div>
         </div>

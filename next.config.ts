@@ -4,7 +4,7 @@ import { type NextConfig } from "next"
 import { env } from "./env.mjs"
 
 const config: NextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false,
   logging: {
     fetches: {
       fullUrl: true,
