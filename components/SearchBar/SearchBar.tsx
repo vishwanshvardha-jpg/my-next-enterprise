@@ -1,6 +1,7 @@
 "use client"
 
-import { Search as SearchIcon, X, Loader2 } from "lucide-react"
+import { Loader2, Search as SearchIcon, X } from "lucide-react"
+import posthog from "posthog-js"
 import { useCallback, useRef, useState } from "react"
 
 interface SearchBarProps {
@@ -39,6 +40,7 @@ export function SearchBar({ onSearch, onClear, isLoading = false }: SearchBarPro
         clearTimeout(debounceRef.current)
       }
       if (value.trim().length > 0) {
+        posthog.capture("track_searched", { query: value.trim() })
         onSearch(value.trim())
       }
     },
@@ -56,10 +58,10 @@ export function SearchBar({ onSearch, onClear, isLoading = false }: SearchBarPro
   }, [onClear])
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-xl group">
+    <form onSubmit={handleSubmit} className="group w-full max-w-xl">
       <div className="relative">
         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-5">
-          <SearchIcon className="h-5 w-5 text-aura-muted group-focus-within:text-white transition-colors" />
+          <SearchIcon className="text-aura-muted h-5 w-5 transition-colors group-focus-within:text-white" />
         </div>
 
         <input
@@ -67,24 +69,24 @@ export function SearchBar({ onSearch, onClear, isLoading = false }: SearchBarPro
           type="text"
           value={value}
           onChange={handleChange}
-          className="w-full h-12 rounded-2xl bg-white/5 border border-white/5 py-3 pr-12 pl-12 text-white placeholder-aura-muted transition-all hover:bg-white/10 focus:bg-white/10 focus:ring-1 focus:ring-white/20 focus:outline-none font-medium"
+          className="placeholder-aura-muted h-12 w-full rounded-2xl border border-white/5 bg-white/5 py-3 pr-12 pl-12 font-medium text-white transition-all hover:bg-white/10 focus:bg-white/10 focus:ring-1 focus:ring-white/20 focus:outline-none"
           placeholder="Search what you feel..."
           autoComplete="off"
         />
 
         <div className="absolute inset-y-0 right-0 flex items-center pr-4">
           {isLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-aura-primary" />
+            <Loader2 className="text-aura-primary h-5 w-5 animate-spin" />
           ) : value.length > 0 ? (
             <button
               type="button"
               onClick={handleClear}
-              className="rounded-full p-1.5 text-aura-muted hover:bg-white/10 hover:text-white transition-all"
+              className="text-aura-muted rounded-full p-1.5 transition-all hover:bg-white/10 hover:text-white"
             >
               <X className="h-4 w-4" />
             </button>
           ) : (
-            <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg border border-white/10 text-[10px] font-bold text-aura-muted">
+            <div className="text-aura-muted hidden items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1 text-[10px] font-bold sm:flex">
               <span className="text-xs">⌘</span> K
             </div>
           )}

@@ -1,3 +1,4 @@
+import posthog from 'posthog-js';
 import { create } from 'zustand';
 import { getLikedSongs, toggleLikeSong } from 'lib/actions/liked-songs';
 import { addSongToPlaylist as addSongAction, deletePlaylist as deletePlaylistAction, getPlaylists, getPlaylistSongs } from 'lib/actions/playlists';
@@ -113,6 +114,13 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
     try {
       await toggleLikeSong(track, isLiked);
+      
+      posthog.capture(isLiked ? 'track_unliked' : 'track_liked', {
+        track_id: track.trackId,
+        track_name: track.trackName,
+        artist_name: track.artistName
+      });
+
       if (activePlaylistId === 'liked' || activePlaylistId === 'library') {
         fetchPlaylistTracks(activePlaylistId);
       }
@@ -123,12 +131,19 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   addToPlaylist: async (track, playlistId) => {
-    const { activePlaylistId, fetchPlaylistTracks } = get();
+    const { activePlaylistId, fetchPlaylistTracks, playlists } = get();
     try {
       await addSongAction(playlistId, track);
+      
+      const playlist = playlists.find(p => p.id === playlistId);
+      posthog.capture('track_added_to_playlist', {
+        track_id: track.trackId,
+        track_name: track.trackName,
+        playlist_id: playlistId,
+        playlist_name: playlist?.name
+      });
+
       if (activePlaylistId === playlistId) fetchPlaylistTracks(playlistId);
-      // We don't have user object here, but fetchInitialData needs it
-      // For now, we'll just assume it's called from where user is available
     } catch (err) {
       console.error('Failed to add to playlist:', err);
     }
@@ -165,8 +180,16 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   deletePlaylist: async (id) => {
     try {
+      const { refreshPlaylists, activePlaylistId, selectPlaylist, playlists } = get();
+      const playlist = playlists.find(p => p.id === id);
+      
       await deletePlaylistAction(id);
-      const { refreshPlaylists, activePlaylistId, selectPlaylist } = get();
+      
+      posthog.capture('playlist_deleted', {
+        playlist_id: id,
+        playlist_name: playlist?.name
+      });
+
       await refreshPlaylists();
       if (activePlaylistId === id) selectPlaylist('library');
     } catch (err) {

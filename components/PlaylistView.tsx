@@ -1,13 +1,13 @@
 "use client"
 
-import { Play, Plus, Search, Shuffle, List, Grid, Music, Heart, User as UserIcon } from "lucide-react"
-import { useLibraryStore, usePlaybackStore } from "lib/store"
+import { motion } from "framer-motion"
+import { debounce } from "lodash"
+import { Grid, Heart, List, Music, Play, Plus, Search, User as UserIcon } from "lucide-react"
+import { useMemo, useState } from "react"
 import { useAuth } from "components/Providers/AuthProvider"
 import { TrackList } from "components/TrackList/TrackList"
 import { iTunesTrack } from "lib/itunes"
-import { motion } from "framer-motion"
-import { useState, useCallback, useMemo } from "react"
-import { debounce } from "lodash"
+import { useLibraryStore, usePlaybackStore } from "lib/store"
 
 interface PlaylistViewProps {
   onPlayFromCard: (track: iTunesTrack, context: "search" | "recent" | "playlist" | "library") => void
@@ -20,7 +20,7 @@ export function PlaylistView({
   onPlayFromCard,
   handleToggleLike,
   handleAddToPlaylist,
-  likedSongIds
+  likedSongIds,
 }: PlaylistViewProps) {
   const { user } = useAuth()
   const {
@@ -31,11 +31,11 @@ export function PlaylistView({
     isAddingSongs,
     setAddingSongs,
     playlistSearchTracks,
-    handlePlaylistSearch
+    handlePlaylistSearch,
   } = useLibraryStore()
 
   const { isPlaying, currentTrack, pause: handlePause } = usePlaybackStore()
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list")
 
   const debouncedSearch = useMemo(
     () => debounce((query: string) => handlePlaylistSearch(query), 400),
@@ -44,71 +44,77 @@ export function PlaylistView({
 
   const handlePlayAll = () => {
     if (playlistTracks.length > 0) {
-      const track = playlistTracks[0];
+      const track = playlistTracks[0]
       if (track) {
-        const context = activePlaylistId === 'liked' ? 'library' : 'playlist'
+        const context = activePlaylistId === "liked" ? "library" : "playlist"
         onPlayFromCard(track, context)
       }
     }
   }
 
   return (
-    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+    <div className="animate-in fade-in slide-in-from-bottom-4 space-y-12 pb-20 duration-700">
       {/* Dynamic Header */}
-      <header className="flex flex-col md:flex-row items-end gap-6 pb-2">
-        <div className={`relative h-36 w-36 md:h-44 md:w-44 rounded-[2rem] shadow-xl overflow-hidden group flex-shrink-0 ${
-          activePlaylistId === 'liked' ? 'bg-gradient-to-br from-aura-primary to-aura-accent' : 'bg-aura-surface border border-white/5'
-        }`}>
+      <header className="flex flex-col items-end gap-6 pb-2 md:flex-row">
+        <div
+          className={`group relative h-36 w-36 flex-shrink-0 overflow-hidden rounded-[2rem] shadow-xl md:h-44 md:w-44 ${
+            activePlaylistId === "liked"
+              ? "from-aura-primary to-aura-accent bg-gradient-to-br"
+              : "bg-aura-surface border border-white/5"
+          }`}
+        >
           <div className="absolute inset-0 flex items-center justify-center">
-            {activePlaylistId === 'liked' ? (
-              <Heart className="h-14 w-14 text-white fill-current" />
+            {activePlaylistId === "liked" ? (
+              <Heart className="h-14 w-14 fill-current text-white" />
             ) : (
-              <Music className="h-14 w-14 text-aura-muted group-hover:text-aura-primary transition-colors duration-500" />
+              <Music className="text-aura-muted group-hover:text-aura-primary h-14 w-14 transition-colors duration-500" />
             )}
           </div>
-          <motion.button 
+          <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             onClick={handlePlayAll}
-            className="absolute bottom-3 right-3 h-10 w-10 rounded-full bg-white text-black flex items-center justify-center shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            className="absolute right-3 bottom-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-black opacity-0 shadow-2xl transition-opacity duration-300 group-hover:opacity-100"
           >
             <Play size={16} fill="currentColor" className="ml-0.5" />
           </motion.button>
         </div>
 
         <div className="flex-1 space-y-2.5 pb-2">
-          <div className="inline-block px-2.5 py-0.5 bg-white/5 rounded-full text-[8px] font-black uppercase tracking-[0.2em] text-aura-primary border border-white/10">
-            {activePlaylistId === 'liked' ? 'Public' : 'Playlist'}
+          <div className="text-aura-primary inline-block rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[8px] font-black tracking-[0.2em] uppercase">
+            {activePlaylistId === "liked" ? "Public" : "Playlist"}
           </div>
-          <h1 className="text-3xl md:text-5xl font-display font-black tracking-tight text-white mb-1 line-clamp-1 leading-tight">
+          <h1 className="font-display mb-1 line-clamp-1 text-3xl leading-tight font-black tracking-tight text-white md:text-5xl">
             {currentPlaylistName || "Your Vibes"}
           </h1>
-          <div className="flex items-center gap-3 text-aura-muted text-[10px] font-bold uppercase tracking-widest leading-none">
+          <div className="text-aura-muted flex items-center gap-3 text-[10px] leading-none font-bold tracking-widest uppercase">
             <span className="flex items-center gap-1.5 text-white">
-              <UserIcon size={11} className="text-aura-primary" /> {user?.email?.split('@')[0]}
+              <UserIcon size={11} className="text-aura-primary" /> {user?.email?.split("@")[0]}
             </span>
-            <span className="w-1 h-1 rounded-full bg-white/10" />
+            <span className="h-1 w-1 rounded-full bg-white/10" />
             <span>{playlistTracks.length} tracks</span>
           </div>
         </div>
       </header>
 
       {/* Controls Bar */}
-      <div className="flex items-center justify-between pb-6 border-b border-white/5">
+      <div className="flex items-center justify-between border-b border-white/5 pb-6">
         <div className="flex items-center gap-8">
-          <motion.button 
+          <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handlePlayAll}
-            className="px-10 py-4 bg-aura-primary rounded-2xl text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-aura-primary/30 flex items-center gap-3"
+            className="bg-aura-primary shadow-aura-primary/30 flex items-center gap-3 rounded-2xl px-10 py-4 text-xs font-black tracking-widest text-white uppercase shadow-xl"
           >
             <Play fill="currentColor" size={18} /> Play All
           </motion.button>
-          
-          <button 
+
+          <button
             onClick={() => setAddingSongs(!isAddingSongs)}
-            className={`flex items-center gap-2 px-6 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border ${
-              isAddingSongs ? 'bg-white text-black border-white' : 'bg-white/5 text-white border-white/10 hover:bg-white/10'
+            className={`flex items-center gap-2 rounded-2xl border px-6 py-4 text-xs font-black tracking-widest uppercase transition-all ${
+              isAddingSongs
+                ? "border-white bg-white text-black"
+                : "border-white/10 bg-white/5 text-white hover:bg-white/10"
             }`}
           >
             <Plus size={16} />
@@ -116,16 +122,20 @@ export function PlaylistView({
           </button>
         </div>
 
-        <div className="hidden lg:flex items-center gap-4 bg-white/5 p-1 rounded-2xl border border-white/5">
-          <button 
-            onClick={() => setViewMode('list')}
-            className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'text-white bg-white/10 shadow-lg' : 'text-aura-muted hover:text-white'}`}
+        <div className="hidden items-center gap-4 rounded-2xl border border-white/5 bg-white/5 p-1 lg:flex">
+          <button
+            onClick={() => setViewMode("list")}
+            className={`rounded-xl p-3 transition-all ${
+              viewMode === "list" ? "bg-white/10 text-white shadow-lg" : "text-aura-muted hover:text-white"
+            }`}
           >
             <List size={20} />
           </button>
-          <button 
-            onClick={() => setViewMode('grid')}
-            className={`p-3 rounded-xl transition-all ${viewMode === 'grid' ? 'text-white bg-white/10 shadow-lg' : 'text-aura-muted hover:text-white'}`}
+          <button
+            onClick={() => setViewMode("grid")}
+            className={`rounded-xl p-3 transition-all ${
+              viewMode === "grid" ? "bg-white/10 text-white shadow-lg" : "text-aura-muted hover:text-white"
+            }`}
           >
             <Grid size={20} />
           </button>
@@ -134,19 +144,21 @@ export function PlaylistView({
 
       <div className="min-h-[400px]">
         {isAddingSongs && (
-          <div className="space-y-8 animate-in slide-in-from-top-4 duration-500 mb-12">
-            <div className="max-w-2xl relative">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-aura-muted h-5 w-5" />
-              <input 
+          <div className="animate-in slide-in-from-top-4 mb-12 space-y-8 duration-500">
+            <div className="relative max-w-2xl">
+              <Search className="text-aura-muted absolute top-1/2 left-5 h-5 w-5 -translate-y-1/2" />
+              <input
                 autoFocus
                 placeholder="Find tracks to add to your collection..."
                 onChange={(e) => debouncedSearch(e.target.value)}
-                className="w-full h-14 bg-white/5 border border-white/5 rounded-2xl py-4 pl-14 pr-4 text-white placeholder-aura-muted focus:outline-none focus:bg-white/10 transition-all font-medium text-sm"
+                className="placeholder-aura-muted h-14 w-full rounded-2xl border border-white/5 bg-white/5 py-4 pr-4 pl-14 text-sm font-medium text-white transition-all focus:bg-white/10 focus:outline-none"
               />
             </div>
             {playlistSearchTracks.length > 0 && (
               <div className="space-y-4">
-                <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-aura-muted px-2">Search Results</h3>
+                <h3 className="text-aura-muted px-2 text-[9px] font-black tracking-[0.3em] uppercase">
+                  Search Results
+                </h3>
                 <TrackList
                   tracks={playlistSearchTracks}
                   currentTrackId={currentTrack?.trackId ?? null}
@@ -160,19 +172,21 @@ export function PlaylistView({
                   playlists={playlists}
                   viewMode={viewMode}
                 />
-                <div className="h-px bg-white/5 my-8" />
+                <div className="my-8 h-px bg-white/5" />
               </div>
             )}
           </div>
         )}
 
         <div className="space-y-4">
-          {isAddingSongs && <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-aura-muted px-2">Playlist Tracks</h3>}
+          {isAddingSongs && (
+            <h3 className="text-aura-muted px-2 text-[9px] font-black tracking-[0.3em] uppercase">Playlist Tracks</h3>
+          )}
           <TrackList
             tracks={playlistTracks}
             currentTrackId={currentTrack?.trackId ?? null}
             isPlaying={isPlaying}
-            onPlay={(t) => onPlayFromCard(t, activePlaylistId === 'liked' ? 'library' : 'playlist')}
+            onPlay={(t) => onPlayFromCard(t, activePlaylistId === "liked" ? "library" : "playlist")}
             onPause={handlePause}
             isLoading={false}
             likedSongIds={likedSongIds}

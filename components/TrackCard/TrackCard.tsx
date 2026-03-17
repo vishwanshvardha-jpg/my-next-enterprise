@@ -1,8 +1,9 @@
 "use client"
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
-import { Heart, ListMusic, Plus, Play, Pause } from "lucide-react"
+import { Heart, ListMusic, Pause, Play, Plus } from "lucide-react"
 import Image from "next/image"
+import posthog from "posthog-js"
 import { iTunesTrack } from "lib/itunes"
 import { Playlist } from "lib/types"
 
@@ -18,16 +19,16 @@ interface TrackCardProps {
   playlists?: Playlist[]
 }
 
-export function TrackCard({ 
-  track, 
-  isPlaying, 
-  isCurrentTrack, 
-  onPlay, 
-  onPause, 
-  isLiked = false, 
+export function TrackCard({
+  track,
+  isPlaying,
+  isCurrentTrack,
+  onPlay,
+  onPause,
+  isLiked = false,
   onToggleLike,
   onAddToPlaylist,
-  playlists = []
+  playlists = [],
 }: TrackCardProps) {
   const hasPreview = Boolean(track.previewUrl)
 
@@ -36,6 +37,12 @@ export function TrackCard({
     if (isCurrentTrack && isPlaying) {
       onPause()
     } else {
+      posthog.capture("track_played", {
+        track_id: track.trackId,
+        track_name: track.trackName,
+        artist_name: track.artistName,
+        collection_name: track.collectionName,
+      })
       onPlay(track)
     }
   }
@@ -43,6 +50,11 @@ export function TrackCard({
   const handleLikeClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (onToggleLike) {
+      posthog.capture(isLiked ? "track_unliked" : "track_liked", {
+        track_id: track.trackId,
+        track_name: track.trackName,
+        artist_name: track.artistName,
+      })
       onToggleLike(track)
     }
   }
@@ -53,7 +65,7 @@ export function TrackCard({
         isCurrentTrack ? "bg-white/5" : "bg-transparent"
       }`}
     >
-      <div className="relative mb-5 aspect-square w-full overflow-hidden rounded-[1.5rem] bg-aura-surface shadow-2xl">
+      <div className="bg-aura-surface relative mb-5 aspect-square w-full overflow-hidden rounded-[1.5rem] shadow-2xl">
         <Image
           src={track.artworkUrl100.replace("100x100bb.jpg", "400x400bb.jpg")}
           alt={track.trackName}
@@ -61,20 +73,26 @@ export function TrackCard({
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 200px"
           className="object-cover transition-transform duration-700 group-hover:scale-110"
         />
-        
+
         {/* Play Overlay */}
-        <div 
+        <div
           onClick={handleClick}
-          className={`absolute inset-0 flex items-center justify-center transition-all duration-500 cursor-pointer ${
+          className={`absolute inset-0 flex cursor-pointer items-center justify-center transition-all duration-500 ${
             isCurrentTrack && isPlaying ? "bg-black/40" : "bg-black/0 group-hover:bg-black/40"
           }`}
         >
-          <div className={`h-14 w-14 rounded-full bg-white text-black flex items-center justify-center transform transition-all duration-500 shadow-xl ${
-            isCurrentTrack && isPlaying 
-              ? "opacity-100 scale-100" 
-              : "opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100"
-          }`}>
-            {isCurrentTrack && isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
+          <div
+            className={`flex h-14 w-14 transform items-center justify-center rounded-full bg-white text-black shadow-xl transition-all duration-500 ${
+              isCurrentTrack && isPlaying
+                ? "scale-100 opacity-100"
+                : "scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-100"
+            }`}
+          >
+            {isCurrentTrack && isPlaying ? (
+              <Pause size={24} fill="currentColor" />
+            ) : (
+              <Play size={24} fill="currentColor" className="ml-1" />
+            )}
           </div>
         </div>
 
@@ -83,24 +101,33 @@ export function TrackCard({
           {onAddToPlaylist && playlists.length > 0 && (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
-                <button 
+                <button
                   onClick={(e) => e.stopPropagation()}
-                  className="h-10 w-10 rounded-full glass flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 active:scale-95 text-white"
+                  className="glass flex h-10 w-10 items-center justify-center rounded-full text-white opacity-0 transition-all duration-300 group-hover:opacity-100 hover:scale-110 active:scale-95"
                 >
                   <Plus size={18} />
                 </button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content
-                  className="min-w-[180px] glass-dark rounded-2xl p-2 shadow-2xl animate-in fade-in slide-in-from-top-1 z-[100]"
+                  className="glass-dark animate-in fade-in slide-in-from-top-1 z-[100] min-w-[180px] rounded-2xl p-2 shadow-2xl"
                   sideOffset={5}
                   align="end"
                 >
                   {playlists.map((playlist) => (
                     <DropdownMenu.Item
                       key={playlist.id}
-                      className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold text-white hover:bg-white/10 outline-none cursor-pointer transition-colors"
-                      onSelect={() => onAddToPlaylist(track, playlist.id)}
+                      className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm font-bold text-white transition-colors outline-none hover:bg-white/10"
+                      onSelect={() => {
+                        posthog.capture("track_added_to_playlist", {
+                          track_id: track.trackId,
+                          track_name: track.trackName,
+                          artist_name: track.artistName,
+                          playlist_id: playlist.id,
+                          playlist_name: playlist.name,
+                        })
+                        onAddToPlaylist(track, playlist.id)
+                      }}
                     >
                       <ListMusic size={16} className="text-aura-primary" />
                       <span className="truncate">{playlist.name}</span>
@@ -115,16 +142,24 @@ export function TrackCard({
 
       <div className="flex items-start justify-between gap-2 px-2">
         <div className="min-w-0 flex-1">
-          <h4 className={`font-display font-bold truncate text-base mb-1 transition-colors ${isCurrentTrack ? "text-aura-primary" : "text-white group-hover:text-aura-primary"}`}>
+          <h4
+            className={`font-display mb-1 truncate text-base font-bold transition-colors ${
+              isCurrentTrack ? "text-aura-primary" : "group-hover:text-aura-primary text-white"
+            }`}
+          >
             {track.trackName}
           </h4>
-          <p className="text-[10px] font-black text-aura-muted uppercase tracking-[0.15em] truncate">
+          <p className="text-aura-muted truncate text-[10px] font-black tracking-[0.15em] uppercase">
             {track.artistName}
           </p>
         </div>
         <button
           onClick={handleLikeClick}
-          className={`mt-1 transition-all duration-300 ${isLiked ? "text-aura-primary scale-110" : "text-aura-muted hover:text-white opacity-0 group-hover:opacity-100"}`}
+          className={`mt-1 transition-all duration-300 ${
+            isLiked
+              ? "text-aura-primary scale-110"
+              : "text-aura-muted opacity-0 group-hover:opacity-100 hover:text-white"
+          }`}
         >
           <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
         </button>

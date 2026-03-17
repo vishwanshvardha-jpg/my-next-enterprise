@@ -1,6 +1,7 @@
 "use client"
 
 import { Session, User } from "@supabase/supabase-js"
+import posthog from "posthog-js"
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react"
 
 import { createClient } from "lib/supabase/client"
@@ -22,7 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       setSession(session)
       setUser(session?.user ?? null)
       setIsLoading(false)
@@ -30,10 +33,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     getSession()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const newUser = session?.user ?? null
       setSession(session)
-      setUser(session?.user ?? null)
+      setUser(newUser)
       setIsLoading(false)
+
+      if (newUser) {
+        posthog.identify(newUser.id, {
+          email: newUser.email,
+          instance: "AuraMusic",
+        })
+      }
     })
 
     return () => {
@@ -42,14 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase])
 
   const signOut = async () => {
+    posthog.capture("user_logged_out")
+    posthog.reset()
     await supabase.auth.signOut()
   }
 
-  return (
-    <AuthContext.Provider value={{ user, session, isLoading, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={{ user, session, isLoading, signOut }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

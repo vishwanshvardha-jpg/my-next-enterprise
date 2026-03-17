@@ -1,6 +1,6 @@
 import "styles/tailwind.css"
 import { Metadata } from "next"
-import { Outfit, Geist } from "next/font/google"
+import { Geist, Outfit } from "next/font/google"
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -20,12 +20,15 @@ export const metadata: Metadata = {
 }
 
 import { AuthProvider } from "../components/Providers/AuthProvider"
+import { PostHogProvider } from "../components/Providers/PostHogProvider"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`dark ${outfit.variable} ${geist.variable}`}>
-      <body className="bg-aura-bg font-sans text-aura-text antialiased selection:bg-aura-primary/30">
-        <AuthProvider>{children}</AuthProvider>
+      <body className="bg-aura-bg text-aura-text selection:bg-aura-primary/30 font-sans antialiased">
+        <PostHogProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </PostHogProvider>
       </body>
     </html>
   )

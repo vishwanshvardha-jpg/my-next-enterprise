@@ -23,18 +23,18 @@ interface TrackListProps {
   playlists?: Playlist[]
 }
 
-export function TrackList({ 
-  tracks, 
-  currentTrackId, 
+export function TrackList({
+  tracks,
+  currentTrackId,
   viewMode = "grid",
-  isPlaying, 
-  onPlay, 
-  onPause, 
+  isPlaying,
+  onPlay,
+  onPause,
   isLoading,
   likedSongIds = [],
   onToggleLike,
   onAddToPlaylist,
-  playlists = []
+  playlists = [],
 }: TrackListProps) {
   if (isLoading) {
     return (
@@ -83,20 +83,23 @@ export function TrackList({
       id="track-list"
       className="animate-in fade-in grid grid-cols-2 gap-6 duration-500 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
     >
-      {tracks.map((track) => (
-        <TrackCard
-          key={track.trackId}
-          track={track}
-          isPlaying={isPlaying && currentTrackId === track.trackId}
-          isCurrentTrack={currentTrackId === track.trackId}
-          onPlay={onPlay}
-          onPause={onPause}
-          isLiked={likedSongIds.includes(track.trackId)}
-          onToggleLike={onToggleLike}
-          onAddToPlaylist={onAddToPlaylist}
-          playlists={playlists}
-        />
-      ))}
+      {tracks.map((track) => {
+        if (!track) return null
+        return (
+          <TrackCard
+            key={track.trackId}
+            track={track}
+            isPlaying={isPlaying && currentTrackId === track.trackId}
+            isCurrentTrack={currentTrackId === track.trackId}
+            onPlay={onPlay}
+            onPause={onPause}
+            isLiked={likedSongIds.includes(track.trackId)}
+            onToggleLike={onToggleLike}
+            onAddToPlaylist={onAddToPlaylist}
+            playlists={playlists}
+          />
+        )
+      })}
     </div>
   )
 }

@@ -14,31 +14,48 @@ export async function getPlaylists(): Promise<Playlist[]> {
   }
 }
 
-export async function createPlaylist(name: string, description?: string): Promise<Playlist> {
-  return apiFetch("/playlists", {
-    method: "POST",
-    body: JSON.stringify({ name, description })
-  }) as Promise<Playlist>
+export async function createPlaylist(name: string, _description: string): Promise<Playlist> {
+  try {
+    const data = await apiFetch("/playlists", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    })
+    return data as Playlist
+  } catch (err) {
+    console.error("Error creating playlist:", err)
+    throw err
+  }
 }
 
 export async function deletePlaylist(id: string): Promise<void> {
-  return apiFetch(`/playlists/${id}`, {
-    method: "DELETE"
-  }) as Promise<void>
-}
-
-export async function addSongToPlaylist(playlistId: string, track: iTunesTrack): Promise<{ success: boolean }> {
-  return apiFetch("/playlists/add-song", {
-    method: "POST",
-    body: JSON.stringify({ playlistId, track })
-  }) as Promise<{ success: boolean }>
+  try {
+    await apiFetch(`/playlists/${id}`, {
+      method: "DELETE",
+    })
+  } catch (err) {
+    console.error("Error deleting playlist:", err)
+    throw err
+  }
 }
 
 export async function getPlaylistSongs(playlistId: string): Promise<iTunesTrack[]> {
   try {
-    return apiFetch(`/playlists/${playlistId}/songs`) as Promise<iTunesTrack[]>
+    const data = await apiFetch(`/playlists/${playlistId}/songs`)
+    return data as iTunesTrack[]
   } catch (err) {
     console.error("Error fetching playlist songs:", err)
     return []
+  }
+}
+
+export async function addSongToPlaylist(playlistId: string, track: iTunesTrack): Promise<void> {
+  try {
+    await apiFetch(`/playlists/add-song`, {
+      method: "POST",
+      body: JSON.stringify({ playlistId, track }),
+    })
+  } catch (err) {
+    console.error("Error adding song to playlist:", err)
+    throw err
   }
 }

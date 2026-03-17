@@ -17,9 +17,10 @@ Aura Music provides a seamless, high-fidelity music search and playback experien
 - **Auth Integration**: Secure user accounts managed via Supabase Auth.
 
 ### Technology Stack
-- **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS 4, Zustand, Lucide Icons.
+- **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS 4, Zustand, Lucide Icons, Framer Motion, PostHog (Analytics).
 - **Backend**: Node.js, Express 5, ioredis (Caching Client), tsx.
 - **Data**: Supabase (Postgres + Auth).
+- **Analytics**: PostHog.
 - **External API**: iTunes Search API.
 
 ---
@@ -32,6 +33,7 @@ Aura Music utilizes a **Separated Frontend–Backend Architecture** to ensure cl
 ```mermaid
 graph TD
     Client[Browser / Next.js] -->|Authenticated API Calls| Backend[Node.js Backend]
+    Client -->|Tracks Events| PostHog[PostHog Analytics]
     Backend -->|Check Cache| Redis[(Redis Cache)]
     Redis -- Cache Miss --> Backend
     Backend -->|Fetch Data| iTunes[iTunes API]
@@ -52,16 +54,34 @@ graph TD
 The frontend is built on **Next.js 15** using the **App Router**, prioritizing server-side rendering where possible and client-side interactivity where needed.
 
 ### Structure
-- `app/`: Contains the main layout and entry points.
-  - `layout.tsx`: The root wrapper providing the `AuthProvider` and global font/styles.
-  - `page.tsx`: The primary application shell. It manages the central state for playback, active views, and global search results.
-- `components/`: Modular UI units.
-  - **Sidebar**: Manages navigation and user playlists.
-  - **TopNav**: Global search bar and user profile/authentication status.
-  - **TrackCard**: Individual track display (Grid view).
-  - **TrackList / TrackTable**: List containers that switch between Grid and List views.
-  - **NowPlayingBar**: Persistent audio controller managing the HTML5 Audio state.
-  - **Auth**: Modals and overlays for Supabase auth flows.
+#### `my-next-enterprise/` (Frontend)
+```text
+├── app/                        # Next.js App Router root
+│   ├── layout.tsx              # Root shell, providers, and global styles
+│   └── page.tsx                # Views orchestration (useLibraryStore, usePlaybackStore)
+├── components/                 # Modular UI components
+│   ├── Auth/                   # Auth modals and overlays
+│   ├── Button/                 # Atomic button components
+│   ├── HomeView.tsx            # Main dashboard view
+│   ├── NowPlayingBar/          # Persistent audio controller
+│   ├── Playlist/               # Playlist management UI
+│   ├── Providers/              # React Context providers (AuthProvider)
+│   ├── Sidebar/                # App navigation
+│   ├── TopNav/                 # Search and profile header
+│   └── TrackList/              # Reusable track containers (Grid/List)
+├── hooks/                      # Custom React hooks
+├── lib/                        # Shared logic and utilities
+│   ├── actions/                # Frontend API action wrappers
+│   ├── store/                  # Zustand state management
+│   │   ├── slices/             # Modular store slices
+│   │   ├── library.ts          # Playlists and liked songs state
+│   │   └── playback.ts         # Audio and playback control state
+│   ├── supabase/               # Supabase clients (client, server, middleware)
+│   ├── api-client.ts           # Authenticated fetch wrapper
+│   ├── itunes.ts               # iTunes API utilities
+│   └── types.ts                # Global TypeScript definitions
+├── styles/                     # Global CSS and Tailwind configuration
+```
 
 ### State Management & Playback
 The app uses **Zustand** for centralized state management, eliminating complex prop-drilling and ensuring consistent behavior across the application.
@@ -76,11 +96,19 @@ The app uses **Zustand** for centralized state management, eliminating complex p
 The backend is a robust **Express** server designed for speed and reliability.
 
 ### File Structure
-- `src/index.ts`: The main entry point initializing middleware (CORS, JSON) and routes.
-- `src/routes/`: Route definitions for Music, Library, and Playlists.
-- `src/controllers/`: Maps HTTP requests to service calls.
-- `src/services/`: Pure business logic (iTunes fetching, Supabase queries).
-- `src/config/`: Configuration for Supabase and Redis.
+#### `auramusic-backend/` (Backend)
+```text
+├── src/                        # Source root
+│   ├── config/                 # External service configurations (Supabase, Redis)
+│   ├── controllers/            # Request handlers
+│   ├── middleware/             # Express middleware (Auth, Errors)
+│   ├── routes/                 # API endpoint definitions
+│   ├── services/               # Business logic and external API integrations
+│   └── index.ts                # Application entry point
+├── dist/                       # Compiled production code
+├── package.json                # API dependencies and scripts
+└── tsconfig.json               # TypeScript configuration
+```
 
 ### Logic Flow
 1. **Middleware**: All protected routes pass through `auth.ts`, which verifies the Supabase JWT.
@@ -185,6 +213,9 @@ A quick reference guide to locating files by functional area.
 
 ### Redis Caching
 - **Backend**: `src/config/redis.ts`, `src/controllers/music.controller.ts`
+
+### Analytics
+- **Frontend**: `instrumentation-client.ts` (Initialization), `app/page.tsx` (Event capture), `components/Sidebar/Sidebar.tsx` (Event capture)
 
 ---
 

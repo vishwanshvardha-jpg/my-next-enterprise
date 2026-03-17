@@ -1,3 +1,4 @@
+import posthog from 'posthog-js';
 import { create } from 'zustand';
 import { iTunesTrack } from 'lib/itunes';
 
@@ -34,8 +35,15 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
     const { audio, currentTrack } = get();
     if (!audio) return;
 
-    // If it's the same track, just toggle play
+    // If it's the same track, just toggle play or update context/list
     if (currentTrack?.trackId === track.trackId) {
+      if (context || list) {
+        set({
+          playbackContext: context || get().playbackContext,
+          currentList: list || get().currentList,
+        });
+      }
+
       if (get().isPlaying) {
         audio.pause();
         set({ isPlaying: false });
@@ -57,6 +65,13 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
       playbackContext: context || get().playbackContext,
       currentList: list || get().currentList,
     });
+
+    posthog.capture('track_played', {
+      track_id: track.trackId,
+      track_name: track.trackName,
+      artist_name: track.artistName,
+      context: context || get().playbackContext
+    });
   },
 
   togglePlay: () => {
@@ -76,13 +91,27 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
     if (!audio || !currentTrack) return;
     audio.play();
     set({ isPlaying: true });
+
+    posthog.capture('track_played', {
+      track_id: currentTrack.trackId,
+      track_name: currentTrack.trackName,
+      artist_name: currentTrack.artistName,
+      trigger: 'manual_play'
+    });
   },
 
   pause: () => {
-    const { audio } = get();
+    const { audio, currentTrack } = get();
     if (!audio) return;
     audio.pause();
     set({ isPlaying: false });
+
+    if (currentTrack) {
+      posthog.capture('track_paused', {
+        track_id: currentTrack.trackId,
+        track_name: currentTrack.trackName
+      });
+    }
   },
 
   next: () => {

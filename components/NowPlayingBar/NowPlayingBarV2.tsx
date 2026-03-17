@@ -4,9 +4,9 @@ import { ListMusic, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward, Volume2
 import Image from "next/image"
 import posthog from "posthog-js"
 import { useEffect, useRef, useState } from "react"
-import { usePlaybackStore } from "lib/store"
+import { usePlaybackStore, useUIStore } from "lib/store"
 
-export function NowPlayingBar() {
+export function NowPlayingBarV2() {
   const {
     currentTrack: track,
     isPlaying,
@@ -16,6 +16,8 @@ export function NowPlayingBar() {
     prev: onPrev,
     currentList,
   } = usePlaybackStore()
+
+  const { isNowPlayingPanelOpen, toggleNowPlayingPanel } = useUIStore()
 
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -74,12 +76,34 @@ export function NowPlayingBar() {
     setProgress(targetTime)
   }
 
+  const handleTogglePanel = () => {
+    const willOpen = !isNowPlayingPanelOpen
+    toggleNowPlayingPanel()
+    posthog.capture(willOpen ? "right_panel_opened" : "right_panel_closed", {
+      track_id: track.trackId,
+      track_name: track.trackName,
+    })
+  }
+
   return (
-    <div className="fixed right-0 bottom-0 left-0 z-[100] p-4 lg:px-8">
-      <div className="glass-dark mx-auto flex h-24 max-w-7xl items-center justify-between gap-8 rounded-[2.5rem] p-4 shadow-2xl lg:h-28 lg:p-6">
+    <div className="fixed right-0 bottom-0 left-0 z-[100] border-t border-white/10 bg-black/95 backdrop-blur-2xl">
+      {/* Progress bar — flush to top of bar, full width */}
+      <div
+        ref={progressBarRef}
+        onClick={handleSeek}
+        className="group relative h-1 w-full cursor-pointer bg-white/10 hover:h-1.5 transition-all duration-150"
+      >
+        <div
+          className="group-hover:bg-aura-primary absolute inset-y-0 left-0 bg-white/70 transition-colors"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+
+      <div className="flex h-20 items-center justify-between gap-4 px-4 lg:px-8">
+
         {/* Track Info */}
-        <div className="flex min-w-0 flex-1 items-center gap-4 lg:w-[30%] lg:flex-none">
-          <div className="group relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl border border-white/10 shadow-lg">
+        <div className="flex min-w-0 w-[30%] flex-shrink-0 items-center gap-3">
+          <div className="group relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-md border border-white/10 shadow-lg">
             <Image
               src={track.artworkUrl100.replace("100x100bb.jpg", "400x400bb.jpg")}
               alt={track.trackName}
@@ -88,18 +112,18 @@ export function NowPlayingBar() {
             />
           </div>
           <div className="min-w-0">
-            <h4 className="font-display hover:text-aura-primary mb-1 cursor-pointer truncate text-base font-bold text-white transition-colors">
+            <h4 className="hover:text-aura-primary mb-0.5 cursor-pointer truncate text-sm font-bold text-white transition-colors">
               {track.trackName}
             </h4>
-            <p className="text-aura-muted truncate text-xs leading-none font-medium tracking-widest uppercase">
+            <p className="text-aura-muted truncate text-xs font-medium">
               {track.artistName}
             </p>
           </div>
         </div>
 
-        {/* Player Controls */}
-        <div className="flex max-w-2xl flex-1 flex-col items-center">
-          <div className="mb-3 flex items-center gap-6">
+        {/* Player Controls — center */}
+        <div className="flex flex-1 max-w-2xl flex-col items-center gap-2">
+          <div className="flex items-center gap-6">
             <button className="text-aura-muted transition-colors hover:text-white">
               <Shuffle size={16} />
             </button>
@@ -115,16 +139,16 @@ export function NowPlayingBar() {
               disabled={!hasPrev}
               className="hover:text-aura-primary text-white transition-colors disabled:opacity-20"
             >
-              <SkipBack className="h-6 w-6 fill-current" />
+              <SkipBack className="h-5 w-5 fill-current" />
             </button>
             <button
               onClick={togglePlay}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-black shadow-xl transition-all hover:scale-105 active:scale-95"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black shadow-xl transition-all hover:scale-105 active:scale-95"
             >
               {isPlaying ? (
-                <Pause size={20} fill="currentColor" />
+                <Pause size={18} fill="currentColor" />
               ) : (
-                <Play size={20} fill="currentColor" className="ml-1" />
+                <Play size={18} fill="currentColor" className="ml-0.5" />
               )}
             </button>
             <button
@@ -139,40 +163,29 @@ export function NowPlayingBar() {
               disabled={!hasNext}
               className="hover:text-aura-primary text-white transition-colors disabled:opacity-20"
             >
-              <SkipForward className="h-6 w-6 fill-current" />
+              <SkipForward className="h-5 w-5 fill-current" />
             </button>
             <button className="text-aura-muted transition-colors hover:text-white">
               <Repeat size={16} />
             </button>
           </div>
 
-          <div className="flex w-full items-center gap-3">
+          {/* Time */}
+          <div className="flex w-full items-center justify-center gap-2">
             <span className="text-aura-muted w-8 text-right font-mono text-[10px]">{formatTime(progress)}</span>
-            <div
-              ref={progressBarRef}
-              onClick={handleSeek}
-              className="group relative h-1.5 flex-1 cursor-pointer overflow-hidden rounded-full bg-white/10"
-            >
-              <div
-                className="group-hover:bg-aura-primary absolute inset-y-0 left-0 bg-white transition-colors"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
+            <span className="text-aura-muted font-mono text-[10px]">/</span>
             <span className="text-aura-muted w-8 font-mono text-[10px]">{formatTime(duration)}</span>
           </div>
         </div>
 
-        {/* Volume & Queue */}
-        <div className="hidden w-[30%] items-center justify-end gap-6 lg:flex">
-          <button className="text-aura-muted transition-colors hover:text-white">
-            <ListMusic size={20} />
-          </button>
-          <div className="group flex w-32 items-center gap-3 rounded-2xl border border-white/5 bg-white/5 px-4 py-2">
+        {/* Right: Volume + Panel Toggle */}
+        <div className="hidden w-[30%] items-center justify-end gap-5 lg:flex">
+          <div className="group flex w-28 items-center gap-2 rounded-lg border border-white/5 bg-white/5 px-3 py-1.5">
             <button
               onClick={() => setIsMuted(!isMuted)}
               className="text-aura-muted transition-colors group-hover:text-white"
             >
-              {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
             <input
               type="range"
@@ -184,7 +197,21 @@ export function NowPlayingBar() {
               className="h-1 w-full cursor-pointer accent-white"
             />
           </div>
+
+          {/* Panel toggle */}
+          <button
+            onClick={handleTogglePanel}
+            title="Now Playing view"
+            className={`rounded-md p-2 transition-all ${
+              isNowPlayingPanelOpen
+                ? "bg-aura-primary/20 text-aura-primary"
+                : "text-aura-muted hover:text-white hover:bg-white/10"
+            }`}
+          >
+            <ListMusic size={18} />
+          </button>
         </div>
+
       </div>
     </div>
   )

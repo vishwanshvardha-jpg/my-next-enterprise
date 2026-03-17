@@ -29,28 +29,55 @@ Aura Music is a premium music streaming platform featuring a decoupled architect
 ## 2. Complete Folder Structure
 
 ### Frontend (`my-next-enterprise`)
-- **`app/`**: Next.js App Router root.
-  - `page.tsx`: Views and layout orchestration. Connects to `useLibraryStore` and `usePlaybackStore`.
-  - `layout.tsx`: Root shell, providers, and global styles.
-- **`components/`**: Logic and UI modules.
-  - `Providers/AuthProvider.tsx`: Manages the Supabase auth state.
-  - `NowPlayingBar/`: Handles audio progress and controls by subscribing directly to `usePlaybackStore`.
-  - `Sidebar/`: Navigation and playlist listing.
-  - `TrackList/`: Renders track collections in grid or list format.
-- **`lib/`**: Utilities and shared logic.
-  - `api-client.ts`: Wrapper for authenticated backend requests.
-  - `store/`: Centralized state management (Zustand).
-    - `playback.ts`: Audio state, `HTMLAudioElement` integration, and playback actions.
-    - `library.ts`: Playlists, liked songs, and library navigation.
-  - `actions/`: Frontend-triggered functions calling the backend.
+```text
+my-next-enterprise/
+├── app/                        # Next.js App Router root
+│   ├── layout.tsx              # Root shell, providers, and global styles
+│   └── page.tsx                # Views orchestration (useLibraryStore, usePlaybackStore)
+├── components/                 # Modular UI components
+│   ├── Auth/                   # Auth modals and overlays
+│   ├── Button/                 # Atomic button components
+│   ├── HomeView.tsx            # Main dashboard view
+│   ├── NowPlayingBar/          # Persistent audio controller
+│   ├── Playlist/               # Playlist management UI
+│   ├── Providers/              # React Context providers (AuthProvider)
+│   ├── Sidebar/                # App navigation
+│   ├── TopNav/                 # Search and profile header
+│   └── TrackList/              # Reusable track containers (Grid/List)
+├── hooks/                      # Custom React hooks
+├── lib/                        # Shared logic and utilities
+│   ├── actions/                # Frontend API action wrappers
+│   ├── store/                  # Zustand state management
+│   │   ├── slices/             # Modular store slices
+│   │   ├── library.ts          # Playlists and liked songs state
+│   │   └── playback.ts         # Audio and playback control state
+│   ├── supabase/               # Supabase clients (client, server, middleware)
+│   ├── api-client.ts           # Authenticated fetch wrapper
+│   ├── itunes.ts               # iTunes API utilities
+│   └── types.ts                # Global TypeScript definitions
+├── styles/                     # Global CSS and Tailwind configuration
+├── e2e/                        # Playwright end-to-end tests
+├── assets/                     # Static assets (logos, images)
+├── public/                     # Public static files
+├── next.config.ts              # Next.js configuration
+├── package.json                # Project dependencies and scripts
+└── tsconfig.json               # TypeScript configuration
+```
 
 ### Backend (`auramusic-backend`)
-- **`src/`**: Source root.
-  - **`routes/`**: Endpoint definitions (e.g., `playlist.routes.ts`).
-  - **`controllers/`**: Request handling and response formatting (e.g., `music.controller.ts`).
-  - **`services/`**: Pure business logic and external integrations (e.g., `itunes.service.ts`).
-  - **`middleware/`**: Auth guards and error handlers (e.g., `auth.ts`).
-  - **`config/`**: External connection configurations (Supabase, Redis).
+```text
+auramusic-backend/
+├── src/                        # Source root
+│   ├── config/                 # External service configurations (Supabase, Redis)
+│   ├── controllers/            # Request handlers
+│   ├── middleware/             # Express middleware (Auth, Errors)
+│   ├── routes/                 # API endpoint definitions
+│   ├── services/               # Business logic and external API integrations
+│   └── index.ts                # Application entry point
+├── dist/                       # Compiled production code
+├── package.json                # API dependencies and scripts
+└── tsconfig.json               # TypeScript configuration
+```
 
 ---
 
@@ -228,4 +255,77 @@ async function searchMusic(req, res) {
 **Reason**: iTunes API returns over 20 fields for a track. Creating 20 columns in Postgres would be brittle. JSONB allows flexibilty while maintaining indexing capabilities on `track_id`.
 
 ---
-*Created for Aura Music Engineering Team — March 2026*
+
+## 10. Authentication Flow
+Aura Music uses **Supabase Auth** with a **Cross-Boundary Security Model**.
+
+1. **Frontend Initiation**: In `AuthOverlay.tsx`, users log in via Supabase's `signInWithPassword`.
+2. **Session Persistence**: The `AuthProvider.tsx` wraps the app, listening for `onAuthStateChange`. It stores the session in a React Context.
+3. **Backend Authorization**: 
+   - Every request to the backend includes an `Authorization: Bearer <JWT>` header.
+   - The `api-client.ts` utility automatically injects this token by calling `supabase.auth.getSession()`.
+4. **Backend Verification**: 
+   - The `auth.ts` middleware in the Express backend intercepts the request.
+   - It uses `supabase.auth.getUser(token)` to verify the JWT and extract the `user_id`.
+   - The `user_id` is then attached to the `req` object for use in controllers.
+
+---
+
+## 11. Search Logic & Optimization
+Search is designed for speed and efficiency, balancing user experience with API rate limiting.
+
+1. **Debouncing**: The `SearchBar.tsx` uses a 500ms debounce. This prevents making a request for every keystroke, reducing server load.
+2. **Global Integration**: Searching automatically switches the view to "Home" via `selectPlaylist('home')` in `page.tsx`.
+3. **Backend Caching (Redis)**:
+   - **Key Format**: `search:<normalized_query>`.
+   - **Fail-Open Design**: If Redis is down, the backend logs a warning and fetches directly from iTunes, ensuring no service interruption.
+   - **TTL**: Results are cached for 1 hour to balance data freshness with performance.
+4. **Data Normalization**: The `itunes.service.ts` filters out tracks without preview URLs and transforms the raw iTunes response into a clean `iTunesTrack` object.
+
+---
+
+## 12. Playback System Architecture
+The playback system is built on a "Source of Truth" pattern using Zustand.
+
+1. **The Store (`playback.ts`)**:
+   - Holds a single `HTMLAudioElement` that persists across route changes.
+   - Manages `currentTrack`, `isPlaying`, and the `playbackList` (queue).
+2. **UI Synchronization**:
+   - `NowPlayingBar.tsx` listens to the `timeupdate` and `ended` events on the audio object.
+   - It updates local progress state 60 times per second for smooth seeking bars.
+3. **Context Sensitivity**: When a track is played from a playlist, the store captures the `context` (e.g., 'recent', 'playlist') to allow for correct "Next/Previous" navigation within that specific list.
+
+---
+
+## 13. Library & Playlist Implementation
+Library management uses **Optimistic Updates** to provide a snappy, "local-first" feel.
+
+1. **Optimistic UI**: In `library.ts` (Zustand), the `toggleLike` action updates the local state *before* the API call completes. If the API fails, the store rolls back the state and notifies the user.
+2. **JSONB Persistence**: 
+   - We store the entire `trackData` as a JSONB column in Supabase.
+   - **Why?** This prevents "link rot" where a track's metadata might change or vanish from iTunes, but remains playable from our library.
+3. **Playlist Synchronization**: Creating or deleting a playlist triggers a `refreshPlaylists()` call which re-syncs the Sidebar's playlist array with the database.
+
+---
+
+## 14. PostHog Analytics Integration
+Aura Music integrates PostHog for product telemetry and user behavior analysis.
+
+1. **Initialization**: Configured in `instrumentation-client.ts` with `/ingest` proxying to avoid ad-blockers.
+2. **Automatic Tracking**: Captures page views and session duration out of the box.
+3. **Custom Events**:
+   - `auth_modal_opened`: Tracked when a guest tries to like a song.
+   - `playlist_deleted`: Tracked in `Sidebar.tsx` to understand feature usage.
+4. **Environment Awareness**: Debug logging is enabled in development but silenced in production.
+
+---
+
+## 15. Frontend-Backend Communication
+The `api-fetch` utility at `lib/api-client.ts` is the central gateway for all data.
+
+- **Base URL**: Set to `http://localhost:4000/v1` for local development.
+- **Error Handling**: Standardizes error responses from the backend into human-readable exceptions.
+- **Auto-Auth**: Injects the Supabase access token into every request, ensuring only authenticated users can modify libraries or playlists.
+
+---
+*Deep Dive Documentation — Aura Music Engineering — March 2026*
