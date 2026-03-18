@@ -1,10 +1,11 @@
 "use client"
 
-import { Bell, Music, User as UserIcon } from "lucide-react"
+import { User as UserIcon } from "lucide-react"
 import { useState } from "react"
 import { AuthOverlay } from "components/Auth/AuthOverlay"
 import { useAuth } from "components/Providers/AuthProvider"
 import { SearchBar } from "components/SearchBar/SearchBar"
+import { useLibraryStore } from "lib/store"
 
 interface TopNavProps {
   onHome?: () => void
@@ -16,49 +17,85 @@ interface TopNavProps {
 export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading }: TopNavProps) {
   const { user, signOut } = useAuth()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const { activePlaylistId, selectPlaylist } = useLibraryStore()
+
+  const tabs = [
+    { id: "home", label: "DISCOVER" },
+    { id: "library", label: "MY LIBRARY" },
+  ]
+
+  const handleTabClick = (tabId: string) => {
+    if (tabId === "home") {
+      selectPlaylist("home")
+      onHome?.()
+    } else if (tabId === "library") {
+      selectPlaylist("library")
+    }
+  }
+
+  const getActiveTab = () => {
+    if (!activePlaylistId || activePlaylistId === "home") return "home"
+    if (activePlaylistId === "library") return "library"
+    return "home"
+  }
 
   return (
     <>
-      <nav className="sticky top-0 z-[60] flex w-full items-center justify-between gap-8 bg-transparent px-6 py-4 transition-all duration-300">
-        <div className="flex items-center gap-4">
-          {/* Mobile Back Button */}
-          <button
-            onClick={() => onHome?.()}
-            className="bg-aura-primary shadow-aura-primary/30 flex h-10 w-10 items-center justify-center rounded-xl shadow-lg lg:hidden"
-          >
-            <Music size={20} className="text-white" />
-          </button>
+      <nav className="glass-nav sticky top-0 z-[60] flex w-full items-center justify-between gap-6 px-6 py-4 lg:px-10 border-b border-white/[0.04] mb-4">
+        {/* Left: Tab Navigation */}
+        <div className="flex items-center gap-1">
+          {tabs.map((tab) => {
+            const isActive = getActiveTab() === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabClick(tab.id)}
+                className={`relative px-5 py-2.5 text-[11px] font-bold tracking-[0.15em] transition-all duration-300 ${
+                  isActive
+                    ? "text-aura-primary"
+                    : "text-aura-muted hover:text-white/80"
+                }`}
+              >
+                {tab.label}
+                {isActive && (
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-8 rounded-full bg-aura-primary" />
+                )}
+              </button>
+            )
+          })}
         </div>
 
-        <div className="max-w-2xl flex-1">
-          <SearchBar onSearch={onSearch || (() => {})} onClear={onClearSearch} isLoading={isSearchLoading} />
-        </div>
-
+        {/* Center/Right: Search + Actions */}
         <div className="flex items-center gap-4">
+          <div className="w-72">
+            <SearchBar
+              onSearch={onSearch || (() => {})}
+              onClear={onClearSearch}
+              isLoading={isSearchLoading}
+            />
+          </div>
+
           {user ? (
             <div className="flex items-center gap-3">
-              <button className="text-aura-muted flex h-10 w-10 items-center justify-center rounded-full border border-white/5 bg-white/5 transition-all hover:text-white">
-                <Bell size={18} />
+              <button 
+                onClick={() => signOut()}
+                className="flex h-10 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 pr-4 pl-3 transition-all hover:bg-white/10 hover:border-white/20"
+              >
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-aura-primary text-black">
+                  <UserIcon size={14} />
+                </div>
+                <div className="flex flex-col items-start pr-1">
+                  <span className="text-[12px] font-bold text-white tracking-wide">
+                    {user.user_metadata?.username || user.email?.split("@")[0] || "User"}
+                  </span>
+                  <span className="text-[9px] text-aura-muted group-hover:text-white transition-colors">Sign Out</span>
+                </div>
               </button>
-              <div className="group relative flex cursor-pointer items-center gap-3 rounded-full border border-white/5 bg-white/5 p-1 pr-4 transition-all hover:bg-white/10">
-                <div className="bg-aura-primary flex h-8 w-8 items-center justify-center rounded-full border border-white/10 shadow-lg">
-                  <UserIcon size={16} className="text-white" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs leading-none font-bold text-white">{user.email?.split("@")[0]}</span>
-                  <button
-                    onClick={() => signOut()}
-                    className="text-aura-muted text-left text-[10px] font-medium transition-colors hover:text-white"
-                  >
-                    Sign out
-                  </button>
-                </div>
-              </div>
             </div>
           ) : (
             <button
               onClick={() => setIsAuthOpen(true)}
-              className="rounded-full bg-white px-6 py-2.5 text-xs font-bold text-black shadow-xl transition-all hover:scale-105 active:scale-95"
+              className="btn-primary text-[11px] tracking-wider"
             >
               Sign In
             </button>

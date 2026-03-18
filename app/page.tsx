@@ -116,8 +116,6 @@ export default function AuraMusicPage() {
   const handleAddToPlaylist = useCallback(
     async (track: iTunesTrack, playlistId: string) => {
       await handleAddToPlaylistStore(track, playlistId)
-      // No need to fetch all data again if store handles it, but keeps sync
-      // fetchLibraryData(user)
     },
     [handleAddToPlaylistStore, user]
   )
@@ -196,7 +194,7 @@ export default function AuraMusicPage() {
 
   return (
     <div className="bg-aura-bg flex min-h-screen overflow-hidden font-sans text-white">
-      {/* Sidebar - Desktop Only */}
+      {/* Sidebar */}
       <div
         className={`fixed top-0 left-0 z-50 hidden h-screen transition-all duration-300 lg:block ${
           isSidebarCollapsed ? "w-20" : "w-72"
@@ -207,7 +205,7 @@ export default function AuraMusicPage() {
 
       {/* Main Content */}
       <main
-        className={`no-scrollbar relative flex min-h-screen flex-1 flex-col overflow-y-auto pb-40 transition-all duration-300 ${
+        className={`no-scrollbar relative flex min-h-screen flex-1 flex-col overflow-y-auto pb-28 transition-all duration-300 ${
           isSidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
         } ${
           rightPanelFlagEnabled && isNowPlayingPanelOpen ? "lg:mr-80" : ""
@@ -220,7 +218,7 @@ export default function AuraMusicPage() {
           isSearchLoading={isLoading}
         />
 
-        <div className="mx-auto w-full max-w-[2000px] flex-1 px-8 py-4 lg:px-12">
+        <div className="mx-auto w-full max-w-[2000px] flex-1 px-6 py-4 lg:px-10">
           <AnimatePresence mode="wait">
             <motion.div
               key={activePlaylistId}
@@ -235,10 +233,10 @@ export default function AuraMusicPage() {
         </div>
       </main>
 
-      {/* Player Bar — swapped based on feature flag */}
+      {/* Player Bar */}
       {rightPanelFlagEnabled ? <NowPlayingBarV2 /> : <NowPlayingBar />}
 
-      {/* Right Now Playing Panel — only shown when flag enabled */}
+      {/* Right Now Playing Panel */}
       {rightPanelFlagEnabled && <RightNowPlayingPanel />}
 
       <AuthOverlay isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />

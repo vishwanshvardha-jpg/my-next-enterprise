@@ -58,10 +58,10 @@ export function SearchBar({ onSearch, onClear, isLoading = false }: SearchBarPro
   }, [onClear])
 
   return (
-    <form onSubmit={handleSubmit} className="group w-full max-w-xl">
+    <form onSubmit={handleSubmit} className="group w-full">
       <div className="relative">
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-5">
-          <SearchIcon className="text-aura-muted h-5 w-5 transition-colors group-focus-within:text-white" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+          <SearchIcon className="text-aura-muted h-4 w-4 transition-colors group-focus-within:text-aura-primary" />
         </div>
 
         <input
@@ -69,27 +69,23 @@ export function SearchBar({ onSearch, onClear, isLoading = false }: SearchBarPro
           type="text"
           value={value}
           onChange={handleChange}
-          className="placeholder-aura-muted h-12 w-full rounded-2xl border border-white/5 bg-white/5 py-3 pr-12 pl-12 font-medium text-white transition-all hover:bg-white/10 focus:bg-white/10 focus:ring-1 focus:ring-white/20 focus:outline-none"
-          placeholder="Search what you feel..."
+          className="placeholder-aura-muted h-9 w-full rounded-xl border border-white/[0.06] bg-white/[0.04] py-2 pr-9 pl-9 text-[13px] font-medium text-white transition-all hover:bg-white/[0.07] focus:bg-white/[0.07] focus:border-aura-primary/30 focus:outline-none focus:ring-1 focus:ring-aura-primary/20"
+          placeholder="Search artist, album..."
           autoComplete="off"
         />
 
-        <div className="absolute inset-y-0 right-0 flex items-center pr-4">
+        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
           {isLoading ? (
-            <Loader2 className="text-aura-primary h-5 w-5 animate-spin" />
+            <Loader2 className="text-aura-primary h-4 w-4 animate-spin" />
           ) : value.length > 0 ? (
             <button
               type="button"
               onClick={handleClear}
-              className="text-aura-muted rounded-full p-1.5 transition-all hover:bg-white/10 hover:text-white"
+              className="text-aura-muted rounded-full p-0.5 transition-all hover:bg-white/10 hover:text-white"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </button>
-          ) : (
-            <div className="text-aura-muted hidden items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1 text-[10px] font-bold sm:flex">
-              <span className="text-xs">⌘</span> K
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
     </form>

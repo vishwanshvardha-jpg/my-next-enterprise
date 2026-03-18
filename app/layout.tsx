@@ -1,17 +1,19 @@
 import "styles/tailwind.css"
 import { Metadata } from "next"
-import { Geist, Outfit } from "next/font/google"
+import { DM_Sans, Sora } from "next/font/google"
 
-const outfit = Outfit({
+const sora = Sora({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  variable: "--font-sora",
   display: "swap",
+  weight: ["300", "400", "500", "600", "700", "800"],
 })
 
-const geist = Geist({
+const dmSans = DM_Sans({
   subsets: ["latin"],
-  variable: "--font-geist",
+  variable: "--font-dm-sans",
   display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
 })
 
 export const metadata: Metadata = {
@@ -24,7 +26,7 @@ import { PostHogProvider } from "../components/Providers/PostHogProvider"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`dark ${outfit.variable} ${geist.variable}`}>
+    <html lang="en" className={`dark ${sora.variable} ${dmSans.variable}`}>
       <body className="bg-aura-bg text-aura-text selection:bg-aura-primary/30 font-sans antialiased">
         <PostHogProvider>
           <AuthProvider>{children}</AuthProvider>

@@ -13,6 +13,9 @@ interface PlaybackState {
   currentList: iTunesTrack[];
   // Reference to the audio object (initialized lazily)
   audio: HTMLAudioElement | null;
+  // Shuffle and repeat states
+  isShuffle: boolean;
+  repeatMode: "off" | "all" | "one";
 
   // Actions
   setTrack: (track: iTunesTrack, context?: 'search' | 'recent' | 'playlist' | 'library', list?: iTunesTrack[]) => void;
@@ -21,6 +24,8 @@ interface PlaybackState {
   pause: () => void;
   next: () => void;
   prev: () => void;
+  toggleShuffle: () => void;
+  toggleRepeat: () => void;
   setList: (list: iTunesTrack[]) => void;
 }
 
@@ -29,6 +34,8 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
   isPlaying: false,
   playbackContext: null,
   currentList: [],
+  isShuffle: false,
+  repeatMode: "off",
   audio: typeof window !== 'undefined' ? new Audio() : null,
 
   setTrack: (track, context, list) => {
@@ -115,26 +122,76 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
   },
 
   next: () => {
-    const { currentTrack, currentList, setTrack } = get();
+    const { currentTrack, currentList, setTrack, isShuffle, repeatMode, audio } = get();
     if (!currentTrack || currentList.length === 0) return;
 
+    if (repeatMode === "one" && audio) {
+      audio.currentTime = 0;
+      audio.play();
+      return;
+    }
+
+    if (isShuffle) {
+      const remainingTracks = currentList.filter(t => t.trackId !== currentTrack.trackId);
+      if (remainingTracks.length > 0) {
+        const randomTrack = remainingTracks[Math.floor(Math.random() * remainingTracks.length)];
+        if (randomTrack) setTrack(randomTrack as iTunesTrack);
+      }
+      return;
+    }
+
     const currentIndex = currentList.findIndex(t => t.trackId === currentTrack.trackId);
-    if (currentIndex !== -1 && currentIndex < currentList.length - 1) {
-      const nextTrack = currentList[currentIndex + 1];
-      if (nextTrack) setTrack(nextTrack);
+    if (currentIndex !== -1) {
+      if (currentIndex < currentList.length - 1) {
+        const t = currentList[currentIndex + 1];
+        if (t) setTrack(t);
+      } else if (repeatMode === "all") {
+        const t = currentList[0];
+        if (t) setTrack(t);
+      }
     }
   },
 
   prev: () => {
-    const { currentTrack, currentList, setTrack } = get();
+    const { currentTrack, currentList, setTrack, audio, isShuffle, repeatMode } = get();
     if (!currentTrack || currentList.length === 0) return;
+
+    // If more than 3 seconds in, just restart track
+    if (audio && audio.currentTime > 3) {
+      audio.currentTime = 0;
+      audio.play();
+      return;
+    }
+
+    if (isShuffle) {
+      const remainingTracks = currentList.filter(t => t.trackId !== currentTrack.trackId);
+      if (remainingTracks.length > 0) {
+        const randomTrack = remainingTracks[Math.floor(Math.random() * remainingTracks.length)];
+        if (randomTrack) setTrack(randomTrack as iTunesTrack);
+      }
+      return;
+    }
 
     const currentIndex = currentList.findIndex(t => t.trackId === currentTrack.trackId);
     if (currentIndex > 0) {
-      const prevTrack = currentList[currentIndex - 1];
-      if (prevTrack) setTrack(prevTrack);
+      const t = currentList[currentIndex - 1];
+      if (t) setTrack(t);
+    } else if (repeatMode === "all" && currentList.length > 0) {
+      const t = currentList[currentList.length - 1];
+      if (t) setTrack(t);
     }
   },
+
+  toggleShuffle: () => set((state) => ({ isShuffle: !state.isShuffle })),
+  
+  toggleRepeat: () => set((state) => {
+    const nextMode = {
+      "off": "all",
+      "all": "one",
+      "one": "off"
+    } as const;
+    return { repeatMode: nextMode[state.repeatMode] };
+  }),
 
 
   setList: (list) => set({ currentList: list }),

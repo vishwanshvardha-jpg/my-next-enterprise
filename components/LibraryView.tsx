@@ -10,57 +10,73 @@ export function LibraryView() {
   const likedSongIds = likedSongs.map((s) => s.trackId)
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 space-y-10 duration-700">
-      <header className="flex items-end justify-between border-b border-white/5 pb-6">
-        <div>
-          <h1 className="font-display mb-1 text-4xl font-black tracking-tight text-white uppercase">My Collection</h1>
-          <p className="text-aura-muted text-[11px] leading-none font-bold tracking-widest uppercase">
-            {playlists.length} playlists <span className="mx-2 text-white/10">|</span> {likedSongIds.length} liked songs
+    <div className="space-y-10 pb-20">
+      {/* Header */}
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.05] p-8 lg:p-10">
+        <div className="absolute -top-20 -left-20 h-60 w-60 rounded-full bg-aura-primary/[0.06] blur-[80px]" />
+        <div className="absolute -bottom-20 -right-20 h-40 w-40 rounded-full bg-aura-secondary/[0.04] blur-[60px]" />
+
+        <div className="relative">
+          <h1 className="font-display mb-2 text-3xl font-bold tracking-tight text-white md:text-4xl">
+            My Collection
+          </h1>
+          <p className="text-aura-muted text-[12px] font-medium">
+            {playlists.length} playlists
+            <span className="mx-2 text-white/10">·</span>
+            {likedSongIds.length} liked songs
           </p>
         </div>
       </header>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+      {/* Grid */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-5">
         {/* Liked Songs Tile */}
         <motion.div
-          whileHover={{ y: -4 }}
+          whileHover={{ y: -4, scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
           onClick={() => selectPlaylist("liked")}
-          className="group from-aura-primary to-aura-accent relative flex aspect-square cursor-pointer flex-col justify-end overflow-hidden rounded-[1.5rem] bg-gradient-to-br p-4 shadow-xl"
+          className="group relative flex aspect-square cursor-pointer flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br from-aura-primary to-aura-secondary p-4 shadow-lg"
+          style={{ boxShadow: "0 8px 30px rgba(0, 212, 170, 0.15)" }}
         >
-          <div className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/20 backdrop-blur-xl">
-            <Heart size={20} className="fill-current text-white" />
+          <div className="absolute top-3.5 right-3.5 flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+            <Heart size={16} className="fill-current text-white" />
           </div>
           <div className="relative z-10">
-            <h3 className="font-display mb-0.5 text-sm font-black tracking-tight text-white uppercase">Liked Songs</h3>
-            <p className="text-[7px] font-bold tracking-[0.2em] text-white/80 uppercase">
+            <h3 className="font-display mb-0.5 text-[13px] font-bold text-white">Liked Songs</h3>
+            <p className="text-[10px] font-medium text-white/70">
               {likedSongIds.length} Tracks
             </p>
           </div>
-          <button className="absolute right-4 bottom-4 flex h-8 w-8 translate-y-2 transform items-center justify-center rounded-full bg-white text-black opacity-0 shadow-xl transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+          <button className="absolute right-3.5 bottom-3.5 flex h-8 w-8 translate-y-3 items-center justify-center rounded-full bg-white text-black opacity-0 shadow-lg transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
             <Play size={12} fill="currentColor" className="ml-0.5" />
           </button>
         </motion.div>
 
         {/* Playlists Tiles */}
-        {playlists.map((p) => (
+        {playlists.map((p, i) => (
           <motion.div
             key={p.id}
-            whileHover={{ y: -4 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05, duration: 0.4 }}
+            whileHover={{ y: -4, scale: 1.02 }}
             onClick={() => selectPlaylist(p.id)}
-            className="group bg-aura-surface relative flex aspect-square cursor-pointer flex-col justify-end overflow-hidden rounded-[1.5rem] border border-white/5 p-4 shadow-lg transition-all hover:bg-white/10"
+            className="group relative flex aspect-square cursor-pointer flex-col justify-end overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 transition-all hover:bg-white/[0.06] hover:border-white/[0.1]"
           >
-            <div className="group-hover:border-aura-primary/30 absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 bg-white/5 backdrop-blur-xl transition-colors">
-              <Music size={20} className="text-aura-muted group-hover:text-aura-primary transition-colors" />
+            <div className="absolute top-3.5 right-3.5 flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.06] border border-white/[0.06] transition-colors group-hover:border-aura-primary/20">
+              <Music size={16} className="text-aura-muted group-hover:text-aura-primary transition-colors" />
             </div>
             <div className="relative z-10">
-              <h3 className="font-display mb-0.5 truncate text-sm font-black tracking-tight text-white uppercase">
+              <h3 className="font-display mb-0.5 truncate text-[13px] font-bold text-white">
                 {p.name}
               </h3>
-              <p className="text-aura-muted text-[7px] font-bold tracking-[0.2em] uppercase">
+              <p className="text-aura-muted text-[10px] font-medium">
                 {p.trackCount ?? 0} Tracks
               </p>
             </div>
-            <button className="bg-aura-primary absolute right-4 bottom-4 flex h-8 w-8 translate-y-2 transform items-center justify-center rounded-full text-white opacity-0 shadow-xl transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+            <button className="absolute right-3.5 bottom-3.5 flex h-8 w-8 translate-y-3 items-center justify-center rounded-full bg-aura-primary text-black opacity-0 shadow-lg transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100"
+              style={{ boxShadow: "0 0 15px rgba(0, 212, 170, 0.3)" }}
+            >
               <Play size={12} fill="currentColor" className="ml-0.5" />
             </button>
           </motion.div>

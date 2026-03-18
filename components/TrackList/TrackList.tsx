@@ -38,7 +38,7 @@ export function TrackList({
 }: TrackListProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-5">
         {Array.from({ length: 14 }).map((_, i) => (
           <TrackCardSkeleton key={i} />
         ))}
@@ -47,17 +47,16 @@ export function TrackList({
   }
 
   if (tracks.length === 0) {
-    // ... (no changes to empty state)
     return (
       <div
         id="no-results"
-        className="animate-in fade-in zoom-in-95 flex flex-col items-center justify-center py-32 text-center duration-500"
+        className="flex flex-col items-center justify-center py-32 text-center"
       >
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-slate-700/50 bg-slate-800/30">
-          <SearchX className="h-8 w-8 text-slate-500" />
+        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+          <SearchX className="h-7 w-7 text-aura-muted" />
         </div>
-        <h2 className="mb-2 text-xl font-semibold text-white">No audio waves found</h2>
-        <p className="text-sm text-slate-400">Try a different search term to find the right vibe.</p>
+        <h2 className="mb-2 font-display text-lg font-bold text-white">No tracks found</h2>
+        <p className="text-sm text-aura-muted">Try a different search to find your vibe.</p>
       </div>
     )
   }
@@ -81,7 +80,7 @@ export function TrackList({
   return (
     <div
       id="track-list"
-      className="animate-in fade-in grid grid-cols-2 gap-6 duration-500 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
+      className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-5"
     >
       {tracks.map((track) => {
         if (!track) return null
