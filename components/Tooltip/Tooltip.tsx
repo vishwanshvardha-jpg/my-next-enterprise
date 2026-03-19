@@ -8,7 +8,7 @@ import { twMerge } from "tailwind-merge"
 const tooltipContent = cva([], {
   variants: {
     intent: {
-      primary: ["rounded-md", "bg-zinc-700", "font-sans", "text-white"],
+      primary: ["rounded-xl", "bg-[#121212]/90", "backdrop-blur-xl", "border", "border-white/10", "font-sans", "text-white", "shadow-2xl"],
     },
     size: {
       md: ["px-4", "py-2.5", "text-xs"],
@@ -23,7 +23,7 @@ const tooltipContent = cva([], {
 const tooltipArrow = cva([], {
   variants: {
     intent: {
-      primary: ["fill-zinc-700"],
+      primary: ["fill-[#121212]/90"],
     },
     size: {
       md: ["w-4", "h-2"],
@@ -41,6 +41,7 @@ export interface TooltipProps extends VariantProps<typeof tooltipContent>, Radix
   className?: string
   withArrow?: boolean
   side?: "top" | "right" | "bottom" | "left"
+  sideOffset?: number
 }
 
 export function Tooltip({
@@ -52,6 +53,7 @@ export function Tooltip({
   intent,
   size,
   side = "top",
+  sideOffset = 5,
   className,
   withArrow,
 }: TooltipProps) {
@@ -62,8 +64,8 @@ export function Tooltip({
         <RadixTooltip.Portal>
           <RadixTooltip.Content
             side={side}
-            sideOffset={5}
-            className={twMerge(tooltipContent({ intent, size, className }))}
+            sideOffset={sideOffset}
+            className={twMerge(tooltipContent({ intent, size, className }), "animate-in fade-in zoom-in-95 duration-200")}
           >
             {explainer}
             {withArrow ? <RadixTooltip.Arrow className={twMerge(tooltipArrow({ intent, size, className }))} /> : null}
