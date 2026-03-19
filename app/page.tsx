@@ -1,68 +1,245 @@
-'use client'
+"use client"
 
-import { Metadata } from "next"
-import { Button } from "components/Button/Button"
+import { AnimatePresence, motion } from "framer-motion"
+import posthog from "posthog-js"
+import { useFeatureFlagEnabled } from "posthog-js/react"
+import { useCallback, useEffect, useState } from "react"
+import { AuthOverlay } from "components/Auth/AuthOverlay"
+import { HomeView } from "components/HomeView"
+import { LibraryView } from "components/LibraryView"
+import { NowPlayingBar } from "components/NowPlayingBar/NowPlayingBar"
+import { NowPlayingBarV2 } from "components/NowPlayingBar/NowPlayingBarV2"
+import { RightNowPlayingPanel } from "components/NowPlayingBar/RightNowPlayingPanel"
+import { PlaylistView } from "components/PlaylistView"
+import { useAuth } from "components/Providers/AuthProvider"
+import { Sidebar } from "components/Sidebar/Sidebar"
+import { TopNav } from "components/TopNav/TopNav"
+import { iTunesTrack } from "lib/itunes"
+import { useLibraryStore, usePlaybackStore, useUIStore } from "lib/store"
 
-import { LP_GRID_ITEMS } from "lp-items"
+export default function AuraMusicPage() {
+  const { user } = useAuth()
 
-export const metadata: Metadata = {
-  title: "Next.js Enterprise Boilerplate",
-  twitter: {
-    card: "summary_large_image",
-  },
-  openGraph: {
-    url: "https://next-enterprise.vercel.app/",
-    images: [
-      {
-        width: 1200,
-        height: 630,
-        url: "https://raw.githubusercontent.com/Blazity/next-enterprise/main/.github/assets/project-logo.png",
-      },
-    ],
-  },
-}
+  // ─── State ──────────────────────────────────────────────────────
+  const [tracks, setTracks] = useState<(iTunesTrack & { addedAt?: string })[]>([])
+  const [recentlyPlayed, setRecentlyPlayed] = useState<iTunesTrack[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("Top Hits")
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  const [featuredTrack, setFeaturedTrack] = useState<iTunesTrack | null>(null)
 
-export default function Web() {
+  // Library / Navigation State (Global)
+  const {
+    playlists,
+    likedSongs,
+    activePlaylistId,
+    playlistTracks,
+    fetchInitialData: fetchLibraryData,
+    selectPlaylist,
+    toggleLike: handleToggleLikeStore,
+    addToPlaylist: handleAddToPlaylistStore,
+  } = useLibraryStore()
+
+  const { setTrack, setList } = usePlaybackStore()
+
+  const rightPanelFlagEnabled = useFeatureFlagEnabled("right-panel-now-playing")
+
+  // UI Store
+  const { isSidebarCollapsed, isNowPlayingPanelOpen } = useUIStore()
+
+  // ─── Search Logic ───────────────────────────────────────────────
+  const handleSearch = useCallback(
+    async (query: string) => {
+      if (!query.trim()) return
+
+      setIsLoading(true)
+      setIsSearching(query !== "Top Hits")
+      setSearchQuery(query)
+
+      if (activePlaylistId !== "home" && query !== "Top Hits") {
+        selectPlaylist("home")
+      }
+
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/music/search?q=${encodeURIComponent(query)}`)
+        if (!res.ok) throw new Error("Search failed")
+        const data = (await res.json()) as { tracks: iTunesTrack[] }
+        setTracks(data.tracks)
+        setList(data.tracks)
+      } catch (err) {
+        console.error("Search error:", err)
+        setTracks([])
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [activePlaylistId, setList, selectPlaylist]
+  )
+
+  const handleClearSearch = useCallback(() => {
+    setIsSearching(false)
+    setSearchQuery("Top Hits")
+    handleSearch("Top Hits")
+  }, [handleSearch])
+
+  useEffect(() => {
+    fetchLibraryData(user)
+    handleSearch("Top Hits")
+
+    const handleHomeReset = () => handleClearSearch()
+    window.addEventListener("aura-home-reset", handleHomeReset)
+    return () => window.removeEventListener("aura-home-reset", handleHomeReset)
+  }, [user, fetchLibraryData, handleSearch, handleClearSearch])
+
+  useEffect(() => {
+    if (tracks.length > 0 && !featuredTrack) {
+      const random = tracks[Math.floor(Math.random() * tracks.length)]
+      if (random) setFeaturedTrack(random)
+    }
+  }, [tracks, featuredTrack])
+
+  const likedSongIds = likedSongs.map((s) => s.trackId)
+
+  const handleToggleLike = useCallback(
+    async (track: iTunesTrack) => {
+      if (!user) {
+        posthog.capture("auth_modal_opened", { trigger: "like_track", track_name: track.trackName })
+        setIsAuthOpen(true)
+        return
+      }
+      await handleToggleLikeStore(track, user)
+    },
+    [user, handleToggleLikeStore]
+  )
+
+  const handleAddToPlaylist = useCallback(
+    async (track: iTunesTrack, playlistId: string) => {
+      await handleAddToPlaylistStore(track, playlistId)
+    },
+    [handleAddToPlaylistStore, user]
+  )
+
+  // LocalStorage for Recent Tracks
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("aura_recent_tracks")
+      if (stored) setRecentlyPlayed(JSON.parse(stored) as iTunesTrack[])
+    } catch (e) {
+      console.error(e)
+    }
+  }, [])
+
+  const saveToRecent = useCallback((track: iTunesTrack) => {
+    setRecentlyPlayed((prev) => {
+      const filtered = prev.filter((t) => t.trackId !== track.trackId)
+      const next = [track, ...filtered].slice(0, 8)
+      try {
+        localStorage.setItem("aura_recent_tracks", JSON.stringify(next))
+      } catch (e) {
+        console.error(e)
+      }
+      return next
+    })
+  }, [])
+
+  const handlePlayFromCard = useCallback(
+    (track: iTunesTrack, context: "search" | "recent" | "playlist" | "library") => {
+      let list: iTunesTrack[] = []
+      if (context === "search") list = tracks
+      else if (context === "recent") list = recentlyPlayed
+      else if (context === "playlist" || context === "library") list = playlistTracks
+
+      setTrack(track, context, list)
+      saveToRecent(track)
+    },
+    [tracks, recentlyPlayed, playlistTracks, setTrack, saveToRecent]
+  )
+
+  const renderContent = () => {
+    if (activePlaylistId === "home") {
+      return (
+        <HomeView
+          key="home"
+          tracks={tracks}
+          featuredTrack={featuredTrack}
+          recentlyPlayed={recentlyPlayed}
+          isSearching={isSearching}
+          searchQuery={searchQuery}
+          isLoading={isLoading}
+          onSearch={handleSearch}
+          onPlayFromCard={handlePlayFromCard}
+          handleToggleLike={handleToggleLike}
+          handleAddToPlaylist={handleAddToPlaylist}
+          likedSongIds={likedSongIds}
+          playlists={playlists}
+        />
+      )
+    }
+
+    if (activePlaylistId === "library") {
+      return <LibraryView key="library" />
+    }
+
+    return (
+      <PlaylistView
+        key={`playlist-${activePlaylistId}`}
+        onPlayFromCard={handlePlayFromCard}
+        handleToggleLike={handleToggleLike}
+        handleAddToPlaylist={handleAddToPlaylist}
+        likedSongIds={likedSongIds}
+      />
+    )
+  }
+
   return (
-    <>
-      <section className="bg-white dark:bg-gray-900">
-        <div className="mx-auto grid max-w-(--breakpoint-xl) px-4 py-8 text-center lg:py-16">
-          <div className="mx-auto place-self-center">
-            <h1 className="mb-4 max-w-2xl text-4xl leading-none font-extrabold tracking-tight md:text-5xl xl:text-6xl dark:text-white">
-              Next.js Enterprise Boilerplate
-            </h1>
-            <p className="mb-6 max-w-2xl font-light text-gray-500 md:text-lg lg:mb-8 lg:text-xl dark:text-gray-400">
-              Jumpstart your enterprise project with our feature-packed, high-performance Next.js boilerplate!
-              Experience rapid UI development, AI-powered code reviews, and an extensive suite of tools for a smooth and
-              enjoyable development process.
-            </p>
-            <Button href="https://github.com/Blazity/next-enterprise" className="mr-3">
-              Get started
-            </Button>
-            <Button
-              href="https://vercel.com/new/git/external?repository-url=https://github.com/Blazity/next-enterprise"
-              intent="secondary"
+    <div className="bg-aura-bg flex min-h-screen overflow-hidden font-sans text-white">
+      {/* Sidebar */}
+      <div
+        className={`fixed top-0 left-0 z-50 hidden h-screen transition-all duration-300 lg:block ${
+          isSidebarCollapsed ? "w-20" : "w-72"
+        }`}
+      >
+        <Sidebar />
+      </div>
+
+      {/* Main Content */}
+      <main
+        className={`no-scrollbar relative flex min-h-screen flex-1 flex-col overflow-y-auto pb-28 transition-all duration-300 ${
+          isSidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
+        } ${
+          rightPanelFlagEnabled && isNowPlayingPanelOpen ? "lg:mr-80" : ""
+        }`}
+      >
+        <TopNav
+          onHome={handleClearSearch}
+          onSearch={handleSearch}
+          onClearSearch={handleClearSearch}
+          isSearchLoading={isLoading}
+        />
+
+        <div className="mx-auto w-full max-w-[2000px] flex-1 px-6 py-4 lg:px-10">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activePlaylistId}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
             >
-              Deploy Now
-            </Button>
-          </div>
+              {renderContent()}
+            </motion.div>
+          </AnimatePresence>
         </div>
-      </section>
-      <section className="bg-white dark:bg-gray-900">
-        <div className="mx-auto max-w-(--breakpoint-xl) px-4 py-8 sm:py-16 lg:px-6">
-          <div className="justify-center space-y-8 md:grid md:grid-cols-2 md:gap-12 md:space-y-0 lg:grid-cols-3">
-            {LP_GRID_ITEMS.map((singleItem) => (
-              <div key={singleItem.title} className="flex flex-col items-center justify-center text-center">
-                <div className="bg-primary-100 dark:bg-primary-900 mb-4 flex size-10 items-center justify-center rounded-full p-1.5 text-blue-700 lg:size-12">
-                  {singleItem.icon}
-                </div>
-                <h3 className="mb-2 text-xl font-bold dark:text-white">{singleItem.title}</h3>
-                <p className="text-gray-500 dark:text-gray-400">{singleItem.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    </>
+      </main>
+
+      {/* Player Bar */}
+      {rightPanelFlagEnabled ? <NowPlayingBarV2 /> : <NowPlayingBar />}
+
+      {/* Right Now Playing Panel */}
+      {rightPanelFlagEnabled && <RightNowPlayingPanel />}
+
+      <AuthOverlay isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+    </div>
   )
 }
