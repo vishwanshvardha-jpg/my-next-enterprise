@@ -2,9 +2,10 @@
 
 import { motion } from "framer-motion"
 import { debounce } from "lodash"
-import { Grid, Heart, List, Music, Play, Plus, Search, User as UserIcon } from "lucide-react"
+import { Grid, Heart, List, Music, Play, Plus, Search, User as UserIcon, UserPlus } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useAuth } from "components/Providers/AuthProvider"
+import { CollaboratorsModal } from "components/Playlist/CollaboratorsModal"
 import { TrackList } from "components/TrackList/TrackList"
 import { iTunesTrack } from "lib/itunes"
 import { useLibraryStore, usePlaybackStore } from "lib/store"
@@ -36,6 +37,9 @@ export function PlaylistView({
 
   const { isPlaying, currentTrack, pause: handlePause } = usePlaybackStore()
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
+  const [isCollaboratorsOpen, setIsCollaboratorsOpen] = useState(false)
+
+  const activePlaylist = playlists.find((p) => p.id === activePlaylistId)
 
   const debouncedSearch = useMemo(
     () => debounce((query: string) => handlePlaylistSearch(query), 400),
@@ -131,6 +135,16 @@ export function PlaylistView({
             <Plus size={14} />
             Add Track
           </button>
+
+          {activePlaylist && activePlaylist.user_id === user?.id && (
+            <button
+              onClick={() => setIsCollaboratorsOpen(true)}
+              className="btn-outline flex items-center gap-2 rounded-full px-5 py-2.5 text-[11px] font-bold tracking-wider uppercase transition-all"
+            >
+              <UserPlus size={14} />
+              Share
+            </button>
+          )}
         </div>
 
         <div className="hidden items-center gap-1 rounded-xl bg-white/[0.04] p-1 lg:flex">
@@ -209,6 +223,15 @@ export function PlaylistView({
           />
         </div>
       </div>
+
+      {activePlaylist && (
+        <CollaboratorsModal
+          isOpen={isCollaboratorsOpen}
+          onClose={() => setIsCollaboratorsOpen(false)}
+          playlistId={activePlaylist.id}
+          playlistName={activePlaylist.name}
+        />
+      )}
     </div>
   )
 }

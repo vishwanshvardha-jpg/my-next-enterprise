@@ -1,4 +1,4 @@
-import { ChevronLeft, Heart, Home, Library, Music, Plus, Trash2 } from "lucide-react"
+import { ChevronLeft, Heart, Home, Library, Music, Plus, Trash2, Users } from "lucide-react"
 import Image from "next/image"
 import posthog from "posthog-js"
 import { useFeatureFlagEnabled } from "posthog-js/react"
@@ -207,7 +207,12 @@ export function Sidebar() {
                     <div className={`bg-white/[0.06] text-aura-muted group-hover:text-aura-primary flex flex-shrink-0 items-center justify-center rounded-lg transition-colors ${isSidebarCollapsed ? 'h-6 w-6' : 'h-7 w-7'}`}>
                       <Music size={isSidebarCollapsed ? 14 : 12} />
                     </div>
-                    {!isSidebarCollapsed && <span className="truncate text-sm font-medium">{playlist.name}</span>}
+                    {!isSidebarCollapsed && (
+                      <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate">
+                        <span className="truncate text-sm font-medium">{playlist.name}</span>
+                        {playlist.isShared && <Users size={10} className="text-aura-primary flex-shrink-0 opacity-70" />}
+                      </span>
+                    )}
                   </button>
                 </Tooltip>
                 {!isSidebarCollapsed && (

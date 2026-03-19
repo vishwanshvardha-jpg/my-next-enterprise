@@ -157,7 +157,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       return;
     }
     try {
-      const res = await fetch(`http://localhost:4000/v1/music/search?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/music/search?q=${encodeURIComponent(query)}`);
       if (!res.ok) throw new Error('Search failed');
       const data = (await res.json()) as { tracks: iTunesTrack[] };
       set({ playlistSearchTracks: data.tracks });

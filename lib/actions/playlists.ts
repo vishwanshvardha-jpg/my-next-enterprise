@@ -2,7 +2,7 @@
 
 import { apiFetch } from "lib/api-client"
 import { iTunesTrack } from "lib/itunes"
-import { Playlist } from "lib/types"
+import { Collaborator, Playlist } from "lib/types"
 
 export async function getPlaylists(): Promise<Playlist[]> {
   try {
@@ -56,6 +56,39 @@ export async function addSongToPlaylist(playlistId: string, track: iTunesTrack):
     })
   } catch (err) {
     console.error("Error adding song to playlist:", err)
+    throw err
+  }
+}
+
+export async function getCollaborators(playlistId: string): Promise<Collaborator[]> {
+  try {
+    const data = await apiFetch(`/playlists/${playlistId}/collaborators`)
+    return data as Collaborator[]
+  } catch (err) {
+    console.error("Error fetching collaborators:", err)
+    return []
+  }
+}
+
+export async function addCollaborator(playlistId: string, email: string): Promise<void> {
+  try {
+    await apiFetch(`/playlists/${playlistId}/collaborators`, {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+  } catch (err) {
+    console.error("Error adding collaborator:", err)
+    throw err
+  }
+}
+
+export async function removeCollaborator(playlistId: string, userId: string): Promise<void> {
+  try {
+    await apiFetch(`/playlists/${playlistId}/collaborators/${userId}`, {
+      method: "DELETE",
+    })
+  } catch (err) {
+    console.error("Error removing collaborator:", err)
     throw err
   }
 }
