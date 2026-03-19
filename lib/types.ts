@@ -7,6 +7,15 @@ export interface Playlist {
   user_id: string
   created_at: string
   trackCount?: number
+  isShared?: boolean
+}
+
+export interface Collaborator {
+  id: string
+  user_id: string
+  email: string
+  role: string
+  created_at: string
 }
 
 export interface LikedSong {
