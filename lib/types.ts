@@ -15,6 +15,17 @@ export interface Collaborator {
   user_id: string
   email: string
   role: string
+  status: "pending" | "accepted" | "declined"
+  created_at: string
+}
+
+export interface PendingInvite {
+  id: string
+  playlist_id: string
+  playlist_name: string
+  owner_user_id: string
+  owner_email: string
+  role: string
   created_at: string
 }
 

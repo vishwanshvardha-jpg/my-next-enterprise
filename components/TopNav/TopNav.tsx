@@ -1,10 +1,12 @@
 "use client"
 
-import { User as UserIcon } from "lucide-react"
-import { useState } from "react"
+import { Bell, User as UserIcon } from "lucide-react"
+import { useEffect, useState } from "react"
 import { AuthOverlay } from "components/Auth/AuthOverlay"
+import { InvitesModal } from "components/Playlist/InvitesModal"
 import { useAuth } from "components/Providers/AuthProvider"
 import { SearchBar } from "components/SearchBar/SearchBar"
+import { getPendingInvites } from "lib/actions/playlists"
 import { useLibraryStore } from "lib/store"
 
 interface TopNavProps {
@@ -17,7 +19,20 @@ interface TopNavProps {
 export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading }: TopNavProps) {
   const { user, signOut } = useAuth()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const { activePlaylistId, selectPlaylist } = useLibraryStore()
+  const [isInvitesOpen, setIsInvitesOpen] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
+  const { activePlaylistId, selectPlaylist, refreshPlaylists } = useLibraryStore()
+
+  useEffect(() => {
+    if (!user) return
+    getPendingInvites().then((invites) => setPendingCount(invites.length))
+  }, [user])
+
+  const handleInviteResponded = async () => {
+    await refreshPlaylists()
+    const fresh = await getPendingInvites()
+    setPendingCount(fresh.length)
+  }
 
   const tabs = [
     { id: "home", label: "DISCOVER" },
@@ -77,7 +92,19 @@ export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading }: Top
 
           {user ? (
             <div className="flex items-center gap-3">
-              <button 
+              <button
+                onClick={() => setIsInvitesOpen(true)}
+                className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-all hover:bg-white/10 hover:border-white/20"
+                title={pendingCount > 0 ? `${pendingCount} pending invite${pendingCount !== 1 ? "s" : ""}` : "No pending invites"}
+              >
+                <Bell size={16} className={pendingCount > 0 ? "text-aura-primary" : "text-aura-muted"} />
+                {pendingCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => signOut()}
                 className="flex h-10 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 pr-4 pl-3 transition-all hover:bg-white/10 hover:border-white/20"
               >
@@ -104,6 +131,11 @@ export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading }: Top
       </nav>
 
       <AuthOverlay isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      <InvitesModal
+        isOpen={isInvitesOpen}
+        onClose={() => setIsInvitesOpen(false)}
+        onInviteResponded={handleInviteResponded}
+      />
     </>
   )
 }

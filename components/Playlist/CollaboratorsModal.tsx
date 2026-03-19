@@ -123,7 +123,12 @@ export function CollaboratorsModal({ isOpen, onClose, playlistId, playlistName }
                         </div>
                         <div>
                           <p className="text-sm font-medium text-white">{c.email}</p>
-                          <p className="text-aura-muted text-[10px] capitalize">{c.role}</p>
+                          <p className="text-aura-muted text-[10px] capitalize">
+                            {c.role}
+                            {c.status !== "accepted" && (
+                              <span className="ml-1 opacity-60">({c.status})</span>
+                            )}
+                          </p>
                         </div>
                       </div>
                       <button

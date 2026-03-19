@@ -2,7 +2,7 @@
 
 import { apiFetch } from "lib/api-client"
 import { iTunesTrack } from "lib/itunes"
-import { Collaborator, Playlist } from "lib/types"
+import { Collaborator, PendingInvite, Playlist } from "lib/types"
 
 export async function getPlaylists(): Promise<Playlist[]> {
   try {
@@ -89,6 +89,28 @@ export async function removeCollaborator(playlistId: string, userId: string): Pr
     })
   } catch (err) {
     console.error("Error removing collaborator:", err)
+    throw err
+  }
+}
+
+export async function getPendingInvites(): Promise<PendingInvite[]> {
+  try {
+    const data = await apiFetch("/playlists/invites/pending")
+    return data as PendingInvite[]
+  } catch (err) {
+    console.error("Error fetching pending invites:", err)
+    return []
+  }
+}
+
+export async function respondToInvite(playlistId: string, status: "accepted" | "declined"): Promise<void> {
+  try {
+    await apiFetch(`/playlists/${playlistId}/collaborators/respond`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    })
+  } catch (err) {
+    console.error("Error responding to invite:", err)
     throw err
   }
 }
