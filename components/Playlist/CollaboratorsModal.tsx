@@ -43,8 +43,8 @@ export function CollaboratorsModal({ isOpen, onClose, playlistId, playlistName }
       await addCollaborator(playlistId, email.trim())
       setEmail("")
       await fetchCollaborators()
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to add collaborator")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add collaborator")
     } finally {
       setIsInviting(false)
     }
@@ -54,8 +54,8 @@ export function CollaboratorsModal({ isOpen, onClose, playlistId, playlistName }
     try {
       await removeCollaborator(playlistId, userId)
       setCollaborators((prev) => prev.filter((c) => c.user_id !== userId))
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to remove collaborator")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove collaborator")
     }
   }
 

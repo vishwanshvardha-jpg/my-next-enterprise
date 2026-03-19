@@ -34,8 +34,8 @@ export function InvitesModal({ isOpen, onClose, onInviteResponded }: InvitesModa
       await respondToInvite(invite.playlist_id, status)
       setInvites((prev) => prev.filter((i) => i.id !== invite.id))
       onInviteResponded()
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to respond to invite")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to respond to invite")
     } finally {
       setRespondingId(null)
     }
