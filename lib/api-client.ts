@@ -1,6 +1,6 @@
 import { createClient } from "lib/supabase/client"
 
-const BACKEND_URL = "http://localhost:4000/v1"
+const BACKEND_URL = `${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000"}/v1`
 
 export async function getAuthHeader() {
   const supabase = createClient()
