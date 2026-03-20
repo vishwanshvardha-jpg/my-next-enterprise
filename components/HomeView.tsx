@@ -3,12 +3,13 @@
 import { motion } from "framer-motion"
 import { ChevronLeft, ChevronRight, Grid, Heart, List, Play, UserPlus } from "lucide-react"
 import Image from "next/image"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { TrackCard } from "components/TrackCard/TrackCard"
 import { TrackList } from "components/TrackList/TrackList"
 import { iTunesTrack } from "lib/itunes"
 import { useLibraryStore, usePlaybackStore } from "lib/store"
 import { Playlist } from "lib/types"
+import { useFeatureFlag } from "hooks/useFeatureFlag"
 
 interface HomeViewProps {
   tracks: (iTunesTrack & { addedAt?: string })[]
@@ -41,8 +42,13 @@ export function HomeView({
 }: HomeViewProps) {
   const { activePlaylistId } = useLibraryStore()
   const { currentTrack, isPlaying, pause: handlePause } = usePlaybackStore()
+  const { variant } = useFeatureFlag("default-view-mode")
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
+
+  useEffect(() => {
+    if (variant === "test") setViewMode("grid")
+  }, [variant])
 
   const albumsScrollRef = useRef<HTMLDivElement>(null)
   const artistsScrollRef = useRef<HTMLDivElement>(null)
