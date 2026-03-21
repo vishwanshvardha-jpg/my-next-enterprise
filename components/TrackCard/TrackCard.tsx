@@ -4,6 +4,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
 import { Heart, ListMusic, Pause, Play, Plus } from "lucide-react"
 import Image from "next/image"
 import posthog from "posthog-js"
+import { useFeatureFlag } from "hooks/useFeatureFlag"
 import { iTunesTrack } from "lib/itunes"
 import { Playlist } from "lib/types"
 
@@ -30,6 +31,9 @@ export function TrackCard({
   onAddToPlaylist,
   playlists = [],
 }: TrackCardProps) {
+  const { variant } = useFeatureFlag("like-button-visibility")
+  const alwaysShowLike = variant === "test"
+
   const hasPreview = Boolean(track.previewUrl)
 
   const handleClick = () => {
@@ -163,6 +167,8 @@ export function TrackCard({
           className={`mt-0.5 transition-all duration-300 ${
             isLiked
               ? "text-aura-primary scale-110"
+              : alwaysShowLike
+              ? "text-aura-muted hover:text-white"
               : "text-aura-muted opacity-0 group-hover:opacity-100 hover:text-white"
           }`}
         >
