@@ -13,7 +13,9 @@ import { Playlist } from "lib/types"
 export function Sidebar() {
   const { user } = useAuth()
   const flagEnabled = useFeatureFlagEnabled("new-playlist-button-style")
-  const isProminent = flagEnabled === true
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  const isProminent = mounted && flagEnabled === true
   const {
     playlists,
     activePlaylistId: activeId,
