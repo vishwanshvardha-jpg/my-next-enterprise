@@ -2,13 +2,15 @@
 
 import { motion } from "framer-motion"
 import { debounce } from "lodash"
-import { Grid, Heart, List, Music, Play, Plus, Search, User as UserIcon, UserPlus } from "lucide-react"
-import { useMemo, useState } from "react"
+import { Grid, Heart, ImagePlus, List, Music, Play, Plus, Search, User as UserIcon, UserPlus } from "lucide-react"
+import Image from "next/image"
+import { useMemo, useRef, useState } from "react"
 import { CollaboratorsModal } from "components/Playlist/CollaboratorsModal"
 import { useAuth } from "components/Providers/AuthProvider"
 import { TrackList } from "components/TrackList/TrackList"
 import { iTunesTrack } from "lib/itunes"
 import { useLibraryStore, usePlaybackStore } from "lib/store"
+import { createClient } from "lib/supabase/client"
 
 interface PlaylistViewProps {
   onPlayFromCard: (track: iTunesTrack, context: "search" | "recent" | "playlist" | "library") => void
@@ -33,13 +35,47 @@ export function PlaylistView({
     setAddingSongs,
     playlistSearchTracks,
     handlePlaylistSearch,
+    updatePlaylistImage,
   } = useLibraryStore()
 
   const { isPlaying, currentTrack, pause: handlePause } = usePlaybackStore()
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
   const [isCollaboratorsOpen, setIsCollaboratorsOpen] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const supabase = createClient()
 
   const activePlaylist = playlists.find((p) => p.id === activePlaylistId)
+  const isOwner = activePlaylist?.user_id === user?.id
+
+  const handleCoverImageClick = () => {
+    if (!isOwner) return
+    fileInputRef.current?.click()
+  }
+
+  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !activePlaylist) return
+
+    setIsUploadingImage(true)
+    try {
+      const ext = file.name.split(".").pop()
+      const fileName = `playlist-covers/${activePlaylist.id}-${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from("playlist-images").upload(fileName, file, {
+        cacheControl: "3600",
+        upsert: false,
+      })
+      if (error) throw error
+
+      const { data } = supabase.storage.from("playlist-images").getPublicUrl(fileName)
+      await updatePlaylistImage(activePlaylist.id, data.publicUrl)
+    } catch (err) {
+      console.error("Cover image upload failed:", err)
+    } finally {
+      setIsUploadingImage(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
 
   const debouncedSearch = useMemo(
     () => debounce((query: string) => handlePlaylistSearch(query), 400),
@@ -75,22 +111,47 @@ export function PlaylistView({
                 : "bg-aura-surface border border-white/[0.06]"
             }`}
           >
-            <div className="absolute inset-0 flex items-center justify-center">
-              {activePlaylistId === "liked" ? (
-                <Heart className="h-14 w-14 fill-current text-white" />
-              ) : (
-                <Music className="text-aura-muted group-hover:text-aura-primary h-14 w-14 transition-colors duration-500" />
-              )}
-            </div>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handlePlayAll}
-              className="absolute right-3 bottom-3 flex h-10 w-10 items-center justify-center rounded-full bg-aura-primary text-black opacity-0 shadow-lg transition-all duration-300 group-hover:opacity-100"
-              style={{ boxShadow: "0 0 20px rgba(0, 212, 170, 0.3)" }}
-            >
-              <Play size={16} fill="currentColor" className="ml-0.5" />
-            </motion.button>
+            {/* Background image or default icon */}
+            {activePlaylist?.image_url ? (
+              <Image
+                src={activePlaylist.image_url}
+                alt={activePlaylist.name}
+                fill
+                sizes="160px"
+                className="object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                {activePlaylistId === "liked" ? (
+                  <Heart className="h-14 w-14 fill-current text-white" />
+                ) : (
+                  <Music className="text-aura-muted group-hover:text-aura-primary h-14 w-14 transition-colors duration-500" />
+                )}
+              </div>
+            )}
+
+            {/* Upload overlay — only for owned playlists, not liked */}
+            {isOwner && activePlaylistId !== "liked" && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverFileChange}
+                />
+                <button
+                  onClick={handleCoverImageClick}
+                  disabled={isUploadingImage}
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/50 opacity-0 backdrop-blur-sm transition-opacity duration-300 group-hover:opacity-100 disabled:cursor-wait"
+                >
+                  <ImagePlus size={22} className="text-white" />
+                  <span className="text-[10px] font-bold tracking-widest text-white uppercase">
+                    {isUploadingImage ? "Uploading..." : activePlaylist?.image_url ? "Change Photo" : "Add Photo"}
+                  </span>
+                </button>
+              </>
+            )}
           </motion.div>
 
           {/* Playlist info */}

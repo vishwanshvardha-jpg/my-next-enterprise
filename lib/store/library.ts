@@ -1,7 +1,7 @@
 import posthog from 'posthog-js';
 import { create } from 'zustand';
 import { getLikedSongs, toggleLikeSong } from 'lib/actions/liked-songs';
-import { addSongToPlaylist as addSongAction, deletePlaylist as deletePlaylistAction, getPlaylists, getPlaylistSongs, leavePlaylist as leavePlaylistAction } from 'lib/actions/playlists';
+import { addSongToPlaylist as addSongAction, deletePlaylist as deletePlaylistAction, getPlaylists, getPlaylistSongs, leavePlaylist as leavePlaylistAction, updatePlaylist as updatePlaylistAction } from 'lib/actions/playlists';
 import { iTunesTrack } from 'lib/itunes';
 import { LikedSong, Playlist } from 'lib/types';
 
@@ -32,6 +32,7 @@ interface LibraryState {
   refreshPlaylists: () => Promise<void>;
   deletePlaylist: (id: string) => Promise<void>;
   leavePlaylist: (id: string) => Promise<void>;
+  updatePlaylistImage: (id: string, imageUrl: string) => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
@@ -195,6 +196,19 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (activePlaylistId === id) selectPlaylist('library');
     } catch (err) {
       console.error('Failed to delete playlist:', err);
+    }
+  },
+
+  updatePlaylistImage: async (id, imageUrl) => {
+    try {
+      await updatePlaylistAction(id, imageUrl);
+      set((state) => ({
+        playlists: state.playlists.map((p) =>
+          p.id === id ? { ...p, image_url: imageUrl } : p
+        ),
+      }));
+    } catch (err) {
+      console.error('Failed to update playlist image:', err);
     }
   },
 

@@ -103,6 +103,18 @@ export async function getPendingInvites(): Promise<PendingInvite[]> {
   }
 }
 
+export async function updatePlaylist(id: string, imageUrl: string): Promise<void> {
+  try {
+    await apiFetch(`/playlists/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ image_url: imageUrl }),
+    })
+  } catch (err) {
+    console.error("Error updating playlist:", err)
+    throw err
+  }
+}
+
 export async function leavePlaylist(id: string): Promise<void> {
   try {
     await apiFetch(`/playlists/${id}/leave`, {
