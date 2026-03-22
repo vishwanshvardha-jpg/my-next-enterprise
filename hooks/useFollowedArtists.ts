@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useAuth } from "components/Providers/AuthProvider"
 import { getFollowedArtists, toggleFollowArtist } from "lib/actions/artists"
 
@@ -29,6 +29,7 @@ function writeLocalStorage(artists: FollowedArtist[]) {
 export function useFollowedArtists() {
   const { user } = useAuth()
   const [followedArtists, setFollowedArtists] = useState<FollowedArtist[]>([])
+  const inFlight = useRef(new Set<string>())
 
   // Load on mount and whenever auth state changes
   useEffect(() => {
@@ -54,6 +55,10 @@ export function useFollowedArtists() {
 
   const toggleFollow = useCallback(
     async (name: string, artwork: string) => {
+      // Ignore rapid double-taps while a request is in flight
+      if (inFlight.current.has(name)) return
+      inFlight.current.add(name)
+
       // Capture state before update for rollback
       let snapshot: FollowedArtist[] = []
 
@@ -76,7 +81,11 @@ export function useFollowedArtists() {
           console.error("Failed to sync follow state:", err)
           setFollowedArtists(snapshot)
           writeLocalStorage(snapshot)
+        } finally {
+          inFlight.current.delete(name)
         }
+      } else {
+        inFlight.current.delete(name)
       }
     },
     [user]

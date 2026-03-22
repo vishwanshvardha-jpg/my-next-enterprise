@@ -91,8 +91,8 @@ export function Sidebar() {
   const sharedPlaylists = playlists.filter((p) => p.isShared)
 
   const navItems = [
-    { id: "playlist", label: "My Playlists", Icon: LayoutGrid, count: undefined as number | undefined },
-    { id: "recent", label: "Recent", Icon: Clock, count: undefined as number | undefined },
+    { id: "playlist", label: "My Playlists", Icon: LayoutGrid, count: undefined },
+    { id: "recent", label: "Recent", Icon: Clock, count: undefined },
     { id: "liked", label: "Liked Songs", Icon: Heart, count: likedSongs.length > 0 ? likedSongs.length : undefined },
   ]
 
@@ -213,7 +213,7 @@ export function Sidebar() {
                   <span className="text-[10px] font-bold tracking-[0.15em] text-aura-muted uppercase">
                     Your Playlists
                   </span>
-                  <Tooltip side="right" sideOffset={8} explainer="New Playlist" open={false}>
+                  <Tooltip side="right" sideOffset={8} explainer="New Playlist">
                     <button
                       onClick={handleCreateClick}
                       className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition-all ${

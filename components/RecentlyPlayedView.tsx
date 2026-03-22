@@ -78,11 +78,17 @@ export function RecentlyPlayedView({
       (t.collectionName || "").toLowerCase().includes(search.toLowerCase())
   )
 
+  const buckets: { today: RecentTrack[]; yesterday: RecentTrack[]; thisweek: RecentTrack[]; earlier: RecentTrack[] } = {
+    today: [], yesterday: [], thisweek: [], earlier: [],
+  }
+  for (const t of filtered) {
+    buckets[getDateGroup(t.playedAt)].push(t)
+  }
   const groups: { key: string; label: string; items: RecentTrack[] }[] = [
-    { key: "today", label: "Today", items: filtered.filter((t) => getDateGroup(t.playedAt) === "today") },
-    { key: "yesterday", label: "Yesterday", items: filtered.filter((t) => getDateGroup(t.playedAt) === "yesterday") },
-    { key: "thisweek", label: "This Week", items: filtered.filter((t) => getDateGroup(t.playedAt) === "thisweek") },
-    { key: "earlier", label: "Earlier", items: filtered.filter((t) => getDateGroup(t.playedAt) === "earlier") },
+    { key: "today", label: "Today", items: buckets.today },
+    { key: "yesterday", label: "Yesterday", items: buckets.yesterday },
+    { key: "thisweek", label: "This Week", items: buckets.thisweek },
+    { key: "earlier", label: "Earlier", items: buckets.earlier },
   ].filter((g) => g.items.length > 0)
 
   const handlePlayAll = () => {
@@ -91,8 +97,6 @@ export function RecentlyPlayedView({
     setList(tracks)
     onPlayFromCard(first, "recent")
   }
-
-  let globalIndex = 0
 
   return (
     <div className="pb-6">
@@ -158,7 +162,9 @@ export function RecentlyPlayedView({
             <span />
           </div>
 
-          {groups.map(({ key, label, items }) => (
+          {groups.map(({ key, label, items }, groupIndex) => {
+            const offset = groups.slice(0, groupIndex).reduce((sum, g) => sum + g.items.length, 0)
+            return (
             <div key={key} className="mb-4">
               {/* Date group header */}
               <p className="mb-1 px-4 py-1 text-[11px] font-bold tracking-[0.12em] text-aura-muted uppercase">
@@ -166,9 +172,8 @@ export function RecentlyPlayedView({
               </p>
 
               <div className="space-y-0.5">
-                {items.map((track) => {
-                  globalIndex++
-                  const idx = globalIndex
+                {items.map((track, itemIndex) => {
+                  const idx = offset + itemIndex + 1
                   const isActive = currentTrack?.trackId === track.trackId
                   const isLiked = likedSongIds.includes(track.trackId)
 
@@ -253,7 +258,7 @@ export function RecentlyPlayedView({
                 })}
               </div>
             </div>
-          ))}
+          )})}
         </>
       )}
     </div>

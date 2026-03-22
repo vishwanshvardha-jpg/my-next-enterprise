@@ -173,13 +173,14 @@ export function SearchBar({ onSearch, onClear, isLoading = false }: SearchBarPro
                   <span className="flex-1 truncate text-[13px] text-white/60 transition-colors group-hover/item:text-white/90">
                     {query}
                   </span>
-                  <span
-                    role="button"
+                  <button
+                    type="button"
+                    aria-label="Remove history item"
                     onClick={(e) => removeFromHistory(query, e)}
                     className="flex-shrink-0 rounded-full p-1 text-white/20 transition-all hover:bg-white/10 hover:text-white/60"
                   >
                     <X className="h-3 w-3" />
-                  </span>
+                  </button>
                 </button>
               </li>
             ))}
