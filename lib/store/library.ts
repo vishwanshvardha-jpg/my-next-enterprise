@@ -1,7 +1,7 @@
 import posthog from 'posthog-js';
 import { create } from 'zustand';
 import { getLikedSongs, toggleLikeSong } from 'lib/actions/liked-songs';
-import { addSongToPlaylist as addSongAction, deletePlaylist as deletePlaylistAction, getPlaylists, getPlaylistSongs } from 'lib/actions/playlists';
+import { addSongToPlaylist as addSongAction, deletePlaylist as deletePlaylistAction, getPlaylists, getPlaylistSongs, leavePlaylist as leavePlaylistAction } from 'lib/actions/playlists';
 import { iTunesTrack } from 'lib/itunes';
 import { LikedSong, Playlist } from 'lib/types';
 
@@ -31,6 +31,7 @@ interface LibraryState {
   setPlaylistSearchTracks: (tracks: iTunesTrack[]) => void;
   refreshPlaylists: () => Promise<void>;
   deletePlaylist: (id: string) => Promise<void>;
+  leavePlaylist: (id: string) => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
@@ -182,9 +183,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     try {
       const { refreshPlaylists, activePlaylistId, selectPlaylist, playlists } = get();
       const playlist = playlists.find(p => p.id === id);
-      
+
       await deletePlaylistAction(id);
-      
+
       posthog.capture('playlist_deleted', {
         playlist_id: id,
         playlist_name: playlist?.name
@@ -194,6 +195,25 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (activePlaylistId === id) selectPlaylist('library');
     } catch (err) {
       console.error('Failed to delete playlist:', err);
+    }
+  },
+
+  leavePlaylist: async (id) => {
+    try {
+      const { refreshPlaylists, activePlaylistId, selectPlaylist, playlists } = get();
+      const playlist = playlists.find(p => p.id === id);
+
+      await leavePlaylistAction(id);
+
+      posthog.capture('playlist_left', {
+        playlist_id: id,
+        playlist_name: playlist?.name
+      });
+
+      await refreshPlaylists();
+      if (activePlaylistId === id) selectPlaylist('library');
+    } catch (err) {
+      console.error('Failed to leave playlist:', err);
     }
   }
 }));
