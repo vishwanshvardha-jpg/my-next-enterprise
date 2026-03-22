@@ -14,11 +14,11 @@ export async function getPlaylists(): Promise<Playlist[]> {
   }
 }
 
-export async function createPlaylist(name: string, _description: string, imageUrl?: string): Promise<Playlist> {
+export async function createPlaylist(name: string, description: string, imageUrl?: string): Promise<Playlist> {
   try {
     const data = await apiFetch("/playlists", {
       method: "POST",
-      body: JSON.stringify({ name, image_url: imageUrl }),
+      body: JSON.stringify({ name, description, image_url: imageUrl }),
     })
     return data as Playlist
   } catch (err) {

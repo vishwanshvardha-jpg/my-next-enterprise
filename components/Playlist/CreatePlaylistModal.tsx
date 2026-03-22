@@ -2,7 +2,6 @@
 
 import * as Dialog from "@radix-ui/react-dialog"
 import { Image as ImageIcon, Music, X } from "lucide-react"
-import Image from "next/image"
 import posthog from "posthog-js"
 import { useRef, useState } from "react"
 
@@ -19,8 +18,8 @@ interface CreatePlaylistModalProps {
 export function CreatePlaylistModal({ isOpen, onClose, onSuccess }: CreatePlaylistModalProps) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -30,29 +29,22 @@ export function CreatePlaylistModal({ isOpen, onClose, onSuccess }: CreatePlayli
     fileInputRef.current?.click()
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    // Revoke the previous preview URL before replacing it
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPendingFile(file)
+    setPreviewUrl(URL.createObjectURL(file))
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
 
-    setIsUploading(true)
-    try {
-      const ext = file.name.split(".").pop()
-      const fileName = `playlist-covers/${Date.now()}.${ext}`
-      const { error } = await supabase.storage.from("playlist-images").upload(fileName, file, {
-        cacheControl: "3600",
-        upsert: false,
-      })
-      if (error) throw error
-
-      const { data } = supabase.storage.from("playlist-images").getPublicUrl(fileName)
-      setImageUrl(data.publicUrl)
-    } catch (err) {
-      console.error("Image upload failed:", err)
-    } finally {
-      setIsUploading(false)
-      // Reset input so the same file can be re-selected
-      if (fileInputRef.current) fileInputRef.current.value = ""
-    }
+  const reset = () => {
+    setName("")
+    setDescription("")
+    setPendingFile(null)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,8 +52,21 @@ export function CreatePlaylistModal({ isOpen, onClose, onSuccess }: CreatePlayli
     if (!name.trim()) return
 
     setIsSubmitting(true)
+    let uploadedPath: string | null = null
     try {
-      const playlist = (await createPlaylist(name, description, imageUrl ?? undefined)) as Playlist
+      let imageUrl: string | undefined
+      if (pendingFile) {
+        const ext = pendingFile.name.split(".").pop()
+        uploadedPath = `playlist-covers/${Date.now()}.${ext}`
+        const { error } = await supabase.storage
+          .from("playlist-images")
+          .upload(uploadedPath, pendingFile, { cacheControl: "3600", upsert: false })
+        if (error) throw error
+        const { data } = supabase.storage.from("playlist-images").getPublicUrl(uploadedPath)
+        imageUrl = data.publicUrl
+      }
+
+      const playlist = (await createPlaylist(name, description, imageUrl)) as Playlist
       posthog.capture("playlist_created", {
         playlist_id: playlist.id,
         playlist_name: name,
@@ -69,11 +74,13 @@ export function CreatePlaylistModal({ isOpen, onClose, onSuccess }: CreatePlayli
         has_image: Boolean(imageUrl),
       })
       onSuccess(playlist)
-      setName("")
-      setDescription("")
-      setImageUrl(null)
+      reset()
       onClose()
     } catch (err) {
+      // If playlist creation failed after a successful upload, clean up the orphaned file
+      if (uploadedPath) {
+        await supabase.storage.from("playlist-images").remove([uploadedPath])
+      }
       posthog.captureException(err)
       console.error("Failed to create playlist:", err)
     } finally {
@@ -109,16 +116,14 @@ export function CreatePlaylistModal({ isOpen, onClose, onSuccess }: CreatePlayli
                 <button
                   type="button"
                   onClick={handleImageClick}
-                  disabled={isUploading}
-                  className="text-aura-muted group relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-inner transition-all hover:bg-white/[0.08] disabled:cursor-wait"
+                  className="text-aura-muted group relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-inner transition-all hover:bg-white/[0.08]"
                 >
-                  {imageUrl ? (
-                    <Image
-                      src={imageUrl}
-                      alt="Playlist cover"
-                      fill
-                      sizes="200px"
-                      className="object-cover"
+                  {previewUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={previewUrl}
+                      alt="Playlist cover preview"
+                      className="absolute inset-0 h-full w-full object-cover"
                     />
                   ) : (
                     <>
@@ -129,9 +134,7 @@ export function CreatePlaylistModal({ isOpen, onClose, onSuccess }: CreatePlayli
                     </>
                   )}
                   <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
-                    <span className="text-xs font-bold tracking-widest text-white uppercase">
-                      {isUploading ? "Uploading..." : "Choose Photo"}
-                    </span>
+                    <span className="text-xs font-bold tracking-widest text-white uppercase">Choose Photo</span>
                   </div>
                 </button>
               </div>
@@ -175,7 +178,7 @@ export function CreatePlaylistModal({ isOpen, onClose, onSuccess }: CreatePlayli
 
             <div className="flex items-center justify-end border-t border-white/5 pt-4">
               <button
-                disabled={isSubmitting || isUploading || !name.trim()}
+                disabled={isSubmitting || !name.trim()}
                 className="w-full rounded-full bg-white px-10 py-3.5 font-black tracking-widest text-black uppercase shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100 md:w-auto"
               >
                 {isSubmitting ? "Saving..." : "Save"}

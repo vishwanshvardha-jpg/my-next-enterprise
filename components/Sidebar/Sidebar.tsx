@@ -1,6 +1,5 @@
 import { ChevronLeft, Heart, Home, Library, LogIn, Music, Plus, Trash2, Users } from "lucide-react"
 import Image from "next/image"
-import posthog from "posthog-js"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useEffect, useState } from "react"
 import { AuthOverlay } from "components/Auth/AuthOverlay"
@@ -85,10 +84,6 @@ export function Sidebar() {
       await leavePlaylist(playlist.id)
     } else {
       if (!confirm("Are you sure you want to delete this playlist?")) return
-      posthog.capture("playlist_deleted", {
-        playlist_id: playlist.id,
-        playlist_name: playlist.name,
-      })
       await deletePlaylist(playlist.id)
     }
   }
