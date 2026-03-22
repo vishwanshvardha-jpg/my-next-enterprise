@@ -1,8 +1,8 @@
-import { ChevronLeft, Heart, Home, Library, Music, Plus, Trash2, Users } from "lucide-react"
+import { ChevronLeft, Heart, Home, Library, LogIn, Music, Plus, Trash2, Users } from "lucide-react"
 import Image from "next/image"
-import posthog from "posthog-js"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useEffect, useState } from "react"
+import { AuthOverlay } from "components/Auth/AuthOverlay"
 import { CreatePlaylistModal } from "components/Playlist/CreatePlaylistModal"
 import { useAuth } from "components/Providers/AuthProvider"
 import { Tooltip } from "components/Tooltip/Tooltip"
@@ -22,12 +22,14 @@ export function Sidebar() {
     selectPlaylist,
     fetchInitialData,
     deletePlaylist,
+    leavePlaylist,
     refreshPlaylists,
   } = useLibraryStore()
 
   const { currentTrack, isPlaying } = usePlaybackStore()
   const { isSidebarCollapsed, toggleSidebar } = useUIStore()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"playlist" | "recent" | "recommended">("playlist")
   const [recentTracks, setRecentTracks] = useState<iTunesTrack[]>([])
 
@@ -59,18 +61,35 @@ export function Sidebar() {
     }
   }, [])
 
-  const handleDeletePlaylist = async (e: React.MouseEvent, id: string) => {
+  const handleLikedSongsClick = () => {
+    if (!user) {
+      setIsAuthOpen(true)
+      return
+    }
+    selectPlaylist("liked")
+  }
+
+  const handleCreateClick = () => {
+    if (!user) {
+      setIsAuthOpen(true)
+      return
+    }
+    setIsModalOpen(true)
+  }
+
+  const handleDeletePlaylist = async (e: React.MouseEvent, playlist: Playlist) => {
     e.stopPropagation()
-    if (!confirm("Are you sure you want to delete this playlist?")) return
-    const playlist = playlists.find((p) => p.id === id)
-    posthog.capture("playlist_deleted", {
-      playlist_id: id,
-      playlist_name: playlist?.name,
-    })
-    await deletePlaylist(id)
+    if (playlist.isShared) {
+      if (!confirm(`Leave "${playlist.name}"? You will no longer have access to this playlist.`)) return
+      await leavePlaylist(playlist.id)
+    } else {
+      if (!confirm("Are you sure you want to delete this playlist?")) return
+      await deletePlaylist(playlist.id)
+    }
   }
 
   return (
+    <>
     <aside
       className={`glass-sidebar relative flex h-full flex-col font-sans transition-all duration-300 ${
         isSidebarCollapsed ? "w-20" : "w-72"
@@ -174,13 +193,13 @@ export function Sidebar() {
       </div>
 
       {/* Queue / Track List */}
-      <div className="no-scrollbar flex-1 overflow-y-auto px-3 pb-6">
+      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-6">
         {activeTab === "playlist" && (
           <div className="space-y-0.5">
             {/* Liked Songs */}
             <Tooltip side="right" sideOffset={20} explainer="Liked Songs" open={isSidebarCollapsed ? undefined : false}>
               <button
-                onClick={() => selectPlaylist("liked")}
+                onClick={handleLikedSongsClick}
                 className={`group relative flex w-full items-center ${isSidebarCollapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'} rounded-xl transition-all ${
                   activeId === "liked"
                     ? "bg-aura-primary/10 text-white"
@@ -188,7 +207,11 @@ export function Sidebar() {
                 }`}
               >
                 <div className={`${isSidebarCollapsed ? 'h-5 w-5' : 'h-7 w-7'} flex flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-aura-primary/30 to-aura-secondary/30`}>
-                  <Heart size={isSidebarCollapsed ? 14 : 12} fill="currentColor" className="text-aura-primary" />
+                  {user ? (
+                    <Heart size={isSidebarCollapsed ? 14 : 12} fill="currentColor" className="text-aura-primary" />
+                  ) : (
+                    <LogIn size={isSidebarCollapsed ? 14 : 12} className="text-aura-primary" />
+                  )}
                 </div>
                 {!isSidebarCollapsed && <span className="text-sm font-medium truncate">Liked Songs</span>}
               </button>
@@ -219,8 +242,11 @@ export function Sidebar() {
                 </Tooltip>
                 {!isSidebarCollapsed && (
                   <button
-                    onClick={(e) => handleDeletePlaylist(e, playlist.id)}
-                    className="text-aura-muted absolute top-1/2 right-3 -translate-y-1/2 p-1 opacity-0 transition-all group-hover:opacity-100 hover:text-red-400"
+                    onClick={(e) => handleDeletePlaylist(e, playlist)}
+                    title={playlist.isShared ? "Leave playlist" : "Delete playlist"}
+                    className={`text-aura-muted absolute top-1/2 right-3 -translate-y-1/2 p-1 opacity-0 transition-all group-hover:opacity-100 ${
+                      playlist.isShared ? "hover:text-yellow-400" : "hover:text-red-400"
+                    }`}
                   >
                     <Trash2 size={11} />
                   </button>
@@ -231,7 +257,7 @@ export function Sidebar() {
             {/* Create Playlist */}
             <Tooltip side="right" sideOffset={20} explainer={isProminent ? "New Playlist" : "Create"} open={isSidebarCollapsed ? undefined : false}>
               <button
-                onClick={() => setIsModalOpen(true)}
+                onClick={handleCreateClick}
                 className={`mt-2 flex w-full items-center ${isSidebarCollapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'} rounded-xl transition-all ${
                   isProminent
                     ? "bg-aura-primary/10 text-aura-primary hover:bg-aura-primary/15"
@@ -326,11 +352,14 @@ export function Sidebar() {
       <CreatePlaylistModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={(p: Playlist) => {
-          refreshPlaylists()
+        onSuccess={async (p: Playlist) => {
+          await refreshPlaylists()
           selectPlaylist(p.id)
         }}
       />
     </aside>
+
+    <AuthOverlay isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+  </>
   )
 }

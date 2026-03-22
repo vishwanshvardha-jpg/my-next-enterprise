@@ -14,11 +14,11 @@ export async function getPlaylists(): Promise<Playlist[]> {
   }
 }
 
-export async function createPlaylist(name: string, _description: string): Promise<Playlist> {
+export async function createPlaylist(name: string, description: string, imageUrl?: string): Promise<Playlist> {
   try {
     const data = await apiFetch("/playlists", {
       method: "POST",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, description, image_url: imageUrl }),
     })
     return data as Playlist
   } catch (err) {
@@ -100,6 +100,29 @@ export async function getPendingInvites(): Promise<PendingInvite[]> {
   } catch (err) {
     console.error("Error fetching pending invites:", err)
     return []
+  }
+}
+
+export async function updatePlaylist(id: string, imageUrl: string): Promise<void> {
+  try {
+    await apiFetch(`/playlists/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ image_url: imageUrl }),
+    })
+  } catch (err) {
+    console.error("Error updating playlist:", err)
+    throw err
+  }
+}
+
+export async function leavePlaylist(id: string): Promise<void> {
+  try {
+    await apiFetch(`/playlists/${id}/leave`, {
+      method: "DELETE",
+    })
+  } catch (err) {
+    console.error("Error leaving playlist:", err)
+    throw err
   }
 }
 
