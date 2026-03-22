@@ -11,6 +11,7 @@ import { NowPlayingBar } from "components/NowPlayingBar/NowPlayingBar"
 import { NowPlayingBarV2 } from "components/NowPlayingBar/NowPlayingBarV2"
 import { RightNowPlayingPanel } from "components/NowPlayingBar/RightNowPlayingPanel"
 import { PlaylistView } from "components/PlaylistView"
+import { RecentlyPlayedView, type RecentTrack } from "components/RecentlyPlayedView"
 import { useAuth } from "components/Providers/AuthProvider"
 import { Sidebar } from "components/Sidebar/Sidebar"
 import { TopNav } from "components/TopNav/TopNav"
@@ -22,7 +23,7 @@ export default function AuraMusicPage() {
 
   // ─── State ──────────────────────────────────────────────────────
   const [tracks, setTracks] = useState<(iTunesTrack & { addedAt?: string })[]>([])
-  const [recentlyPlayed, setRecentlyPlayed] = useState<iTunesTrack[]>([])
+  const [recentlyPlayed, setRecentlyPlayed] = useState<RecentTrack[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("Top Hits")
   const [isAuthOpen, setIsAuthOpen] = useState(false)
@@ -41,12 +42,12 @@ export default function AuraMusicPage() {
     addToPlaylist: handleAddToPlaylistStore,
   } = useLibraryStore()
 
-  const { setTrack, setList } = usePlaybackStore()
+  const { setTrack, setList, currentTrack } = usePlaybackStore()
 
   const rightPanelFlagEnabled = useFeatureFlagEnabled("right-panel-now-playing")
 
   // UI Store
-  const { isSidebarCollapsed, isNowPlayingPanelOpen } = useUIStore()
+  const { isSidebarCollapsed, isNowPlayingPanelOpen, isMobileSidebarOpen, setMobileSidebarOpen } = useUIStore()
 
   // ─── Search Logic ───────────────────────────────────────────────
   const handleSearch = useCallback(
@@ -124,16 +125,17 @@ export default function AuraMusicPage() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem("aura_recent_tracks")
-      if (stored) setRecentlyPlayed(JSON.parse(stored) as iTunesTrack[])
+      if (stored) setRecentlyPlayed(JSON.parse(stored) as RecentTrack[])
     } catch (e) {
       console.error(e)
     }
   }, [])
 
   const saveToRecent = useCallback((track: iTunesTrack) => {
+    const trackWithTime: RecentTrack = { ...track, playedAt: Date.now() }
     setRecentlyPlayed((prev) => {
       const filtered = prev.filter((t) => t.trackId !== track.trackId)
-      const next = [track, ...filtered].slice(0, 8)
+      const next = [trackWithTime, ...filtered].slice(0, 30)
       try {
         localStorage.setItem("aura_recent_tracks", JSON.stringify(next))
       } catch (e) {
@@ -181,6 +183,18 @@ export default function AuraMusicPage() {
       return <LibraryView key="library" />
     }
 
+    if (activePlaylistId === "recent") {
+      return (
+        <RecentlyPlayedView
+          key="recent"
+          recentlyPlayed={recentlyPlayed}
+          onPlayFromCard={(track) => handlePlayFromCard(track, "recent")}
+          handleToggleLike={handleToggleLike}
+          likedSongIds={likedSongIds}
+        />
+      )
+    }
+
     return (
       <PlaylistView
         key={`playlist-${activePlaylistId}`}
@@ -193,8 +207,8 @@ export default function AuraMusicPage() {
   }
 
   return (
-    <div className="bg-aura-bg flex min-h-screen overflow-hidden font-sans text-white">
-      {/* Sidebar */}
+    <div className="bg-aura-bg flex h-screen overflow-hidden font-sans text-white">
+      {/* Desktop Sidebar */}
       <div
         className={`fixed top-0 left-0 z-50 hidden h-screen transition-all duration-300 lg:block ${
           isSidebarCollapsed ? "w-20" : "w-72"
@@ -203,12 +217,25 @@ export default function AuraMusicPage() {
         <Sidebar />
       </div>
 
+      {/* Mobile Sidebar Overlay */}
+      {isMobileSidebarOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+          <div className="absolute top-0 left-0 h-full w-72">
+            <Sidebar />
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main
-        className={`no-scrollbar relative flex min-h-screen flex-1 flex-col overflow-y-auto pb-28 transition-all duration-300 ${
+        className={`no-scrollbar relative flex flex-1 flex-col overflow-y-auto pb-28 transition-all duration-300 ${
           isSidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
         } ${
-          rightPanelFlagEnabled && isNowPlayingPanelOpen ? "lg:mr-80" : ""
+          rightPanelFlagEnabled && isNowPlayingPanelOpen && currentTrack ? "lg:mr-80" : ""
         }`}
       >
         <TopNav

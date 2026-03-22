@@ -8,6 +8,9 @@ interface UIState {
   isNowPlayingPanelOpen: boolean
   toggleNowPlayingPanel: () => void
   setNowPlayingPanelOpen: (open: boolean) => void
+  isMobileSidebarOpen: boolean
+  toggleMobileSidebar: () => void
+  setMobileSidebarOpen: (open: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -19,9 +22,16 @@ export const useUIStore = create<UIState>()(
       isNowPlayingPanelOpen: false,
       toggleNowPlayingPanel: () => set((state) => ({ isNowPlayingPanelOpen: !state.isNowPlayingPanelOpen })),
       setNowPlayingPanelOpen: (open) => set({ isNowPlayingPanelOpen: open }),
+      isMobileSidebarOpen: false,
+      toggleMobileSidebar: () => set((state) => ({ isMobileSidebarOpen: !state.isMobileSidebarOpen })),
+      setMobileSidebarOpen: (open) => set({ isMobileSidebarOpen: open }),
     }),
     {
       name: "aura-ui-storage",
+      partialize: (state) => ({
+        isSidebarCollapsed: state.isSidebarCollapsed,
+        isNowPlayingPanelOpen: state.isNowPlayingPanelOpen,
+      }),
     }
   )
 )

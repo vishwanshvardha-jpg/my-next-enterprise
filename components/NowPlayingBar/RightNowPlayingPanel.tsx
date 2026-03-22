@@ -1,8 +1,10 @@
 "use client"
 
 import { AnimatePresence, motion } from "framer-motion"
-import { Calendar, Disc3, ExternalLink, Music2, X } from "lucide-react"
+import { Calendar, Disc3, ExternalLink, Music2, UserCheck, UserPlus, X } from "lucide-react"
 import Image from "next/image"
+import { useEffect } from "react"
+import { useFollowedArtists } from "hooks/useFollowedArtists"
 import { usePlaybackStore, useUIStore } from "lib/store"
 
 function InfoRow({ label, value }: { label: string; value: string | number | undefined }) {
@@ -20,6 +22,14 @@ function InfoRow({ label, value }: { label: string; value: string | number | und
 export function RightNowPlayingPanel() {
   const { currentTrack: track } = usePlaybackStore()
   const { isNowPlayingPanelOpen, setNowPlayingPanelOpen } = useUIStore()
+  const { toggleFollow, isFollowing } = useFollowedArtists()
+
+  // Auto-close panel when there's no track (e.g. on page refresh before a song plays)
+  useEffect(() => {
+    if (!track && isNowPlayingPanelOpen) {
+      setNowPlayingPanelOpen(false)
+    }
+  }, [track, isNowPlayingPanelOpen, setNowPlayingPanelOpen])
 
   const formatDuration = (ms: number) => {
     const total = Math.floor(ms / 1000)
@@ -31,6 +41,8 @@ export function RightNowPlayingPanel() {
   const releaseYear = track?.releaseDate
     ? new Date(track.releaseDate).getFullYear()
     : undefined
+
+  const artistArtwork = track?.artworkUrl100.replace("100x100bb.jpg", "400x400bb.jpg") ?? ""
 
   return (
     <AnimatePresence>
@@ -47,8 +59,8 @@ export function RightNowPlayingPanel() {
             borderLeft: "1px solid rgba(255, 255, 255, 0.06)",
           }}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
+          {/* Header — h-[72px] to align with sidebar and TopNav dividers */}
+          <div className="flex h-[72px] flex-shrink-0 items-center justify-between border-b border-white/[0.06] px-5">
             <span className="text-[11px] font-semibold tracking-wider text-white/40 uppercase">
               Now Playing
             </span>
@@ -78,7 +90,6 @@ export function RightNowPlayingPanel() {
                 priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-              {/* Glow effect */}
               <div className="absolute -inset-4 -z-10 rounded-3xl bg-aura-primary/[0.06] blur-2xl" />
             </motion.div>
 
@@ -126,14 +137,30 @@ export function RightNowPlayingPanel() {
             <div className="space-y-3">
               <h3 className="text-[10px] font-semibold tracking-wider text-white/30 uppercase">Credits</h3>
               <div className="space-y-2">
+                {/* Artist row with Follow button */}
                 <div className="flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.05] px-3.5 py-2.5">
                   <div className="bg-aura-primary/10 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg">
                     <Music2 size={13} className="text-aura-primary" />
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-[9px] font-semibold tracking-wider text-white/30 uppercase">Artist</p>
                     <p className="truncate text-[13px] font-medium text-white/80">{track.artistName}</p>
                   </div>
+                  <button
+                    onClick={() => toggleFollow(track.artistName, artistArtwork)}
+                    className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide transition-all ${
+                      isFollowing(track.artistName)
+                        ? "bg-aura-primary/20 text-aura-primary hover:bg-red-500/20 hover:text-red-400"
+                        : "bg-white/[0.06] text-white/50 hover:bg-aura-primary/15 hover:text-aura-primary"
+                    }`}
+                    title={isFollowing(track.artistName) ? "Unfollow artist" : "Follow artist"}
+                  >
+                    {isFollowing(track.artistName) ? (
+                      <><UserCheck size={10} /> Following</>
+                    ) : (
+                      <><UserPlus size={10} /> Follow</>
+                    )}
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.05] px-3.5 py-2.5">

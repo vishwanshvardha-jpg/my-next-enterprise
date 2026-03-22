@@ -179,7 +179,7 @@ export function CreatePlaylistModal({ isOpen, onClose, onSuccess }: CreatePlayli
             <div className="flex items-center justify-end border-t border-white/5 pt-4">
               <button
                 disabled={isSubmitting || !name.trim()}
-                className="w-full rounded-full bg-white px-10 py-3.5 font-black tracking-widest text-black uppercase shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100 md:w-auto"
+                className="rounded-full bg-white px-8 py-2 text-sm font-bold tracking-widest text-black uppercase shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:active:scale-100"
               >
                 {isSubmitting ? "Saving..." : "Save"}
               </button>
