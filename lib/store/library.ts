@@ -200,16 +200,12 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   updatePlaylistImage: async (id, imageUrl) => {
-    try {
-      await updatePlaylistAction(id, imageUrl);
-      set((state) => ({
-        playlists: state.playlists.map((p) =>
-          p.id === id ? { ...p, image_url: imageUrl } : p
-        ),
-      }));
-    } catch (err) {
-      console.error('Failed to update playlist image:', err);
-    }
+    await updatePlaylistAction(id, imageUrl);
+    set((state) => ({
+      playlists: state.playlists.map((p) =>
+        p.id === id ? { ...p, image_url: imageUrl } : p
+      ),
+    }));
   },
 
   leavePlaylist: async (id) => {

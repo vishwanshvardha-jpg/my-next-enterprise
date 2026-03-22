@@ -57,18 +57,34 @@ export function PlaylistView({
     const file = e.target.files?.[0]
     if (!file || !activePlaylist) return
 
+    // Extract existing storage key before overwriting, so we can clean it up on success
+    const oldKey = activePlaylist.image_url
+      ? activePlaylist.image_url.split("/storage/v1/object/public/playlist-images/")[1]
+      : null
+
     setIsUploadingImage(true)
+    const ext = file.name.split(".").pop()
+    const fileName = `playlist-covers/${activePlaylist.id}-${Date.now()}.${ext}`
     try {
-      const ext = file.name.split(".").pop()
-      const fileName = `playlist-covers/${activePlaylist.id}-${Date.now()}.${ext}`
-      const { error } = await supabase.storage.from("playlist-images").upload(fileName, file, {
-        cacheControl: "3600",
-        upsert: false,
-      })
-      if (error) throw error
+      const { error: uploadError } = await supabase.storage
+        .from("playlist-images")
+        .upload(fileName, file, { cacheControl: "3600", upsert: false })
+      if (uploadError) throw uploadError
 
       const { data } = supabase.storage.from("playlist-images").getPublicUrl(fileName)
-      await updatePlaylistImage(activePlaylist.id, data.publicUrl)
+
+      try {
+        await updatePlaylistImage(activePlaylist.id, data.publicUrl)
+      } catch (patchErr) {
+        // PATCH failed — remove the newly uploaded file so it doesn't become orphaned
+        await supabase.storage.from("playlist-images").remove([fileName])
+        throw patchErr
+      }
+
+      // Update succeeded — remove the old cover if there was one
+      if (oldKey) {
+        await supabase.storage.from("playlist-images").remove([oldKey])
+      }
     } catch (err) {
       console.error("Cover image upload failed:", err)
     } finally {
@@ -143,7 +159,7 @@ export function PlaylistView({
                 <button
                   onClick={handleCoverImageClick}
                   disabled={isUploadingImage}
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/50 opacity-0 backdrop-blur-sm transition-opacity duration-300 group-hover:opacity-100 disabled:cursor-wait"
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/50 opacity-100 backdrop-blur-sm transition-opacity duration-300 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 disabled:cursor-wait"
                 >
                   <ImagePlus size={22} className="text-white" />
                   <span className="text-[10px] font-bold tracking-widest text-white uppercase">
