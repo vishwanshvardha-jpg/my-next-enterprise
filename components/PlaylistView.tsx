@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { debounce } from "lodash"
-import { Grid, Heart, ImagePlus, List, Music, Play, Plus, Search, User as UserIcon, UserPlus } from "lucide-react"
+import { Grid, Heart, ImagePlus, List, LogOut, Music, Play, Plus, Search, User as UserIcon, UserPlus } from "lucide-react"
 import Image from "next/image"
 import { useMemo, useRef, useState } from "react"
 import { CollaboratorsModal } from "components/Playlist/CollaboratorsModal"
@@ -36,6 +36,7 @@ export function PlaylistView({
     playlistSearchTracks,
     handlePlaylistSearch,
     updatePlaylistImage,
+    leavePlaylist,
   } = useLibraryStore()
 
   const { isPlaying, currentTrack, pause: handlePause } = usePlaybackStore()
@@ -220,6 +221,19 @@ export function PlaylistView({
             >
               <UserPlus size={14} />
               Share
+            </button>
+          )}
+
+          {activePlaylist?.isShared && (
+            <button
+              onClick={async () => {
+                if (!confirm(`Leave "${activePlaylist.name}"? You will no longer have access to this playlist.`)) return
+                await leavePlaylist(activePlaylist.id)
+              }}
+              className="btn-outline flex items-center gap-2 rounded-full px-5 py-2.5 text-[11px] font-bold tracking-wider uppercase transition-all hover:border-red-400/50 hover:text-red-400"
+            >
+              <LogOut size={14} />
+              Leave
             </button>
           )}
         </div>

@@ -89,6 +89,7 @@ export function Sidebar() {
   }
 
   return (
+    <>
     <aside
       className={`glass-sidebar relative flex h-full flex-col font-sans transition-all duration-300 ${
         isSidebarCollapsed ? "w-20" : "w-72"
@@ -192,7 +193,7 @@ export function Sidebar() {
       </div>
 
       {/* Queue / Track List */}
-      <div className="no-scrollbar flex-1 overflow-y-auto px-3 pb-6">
+      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-6">
         {activeTab === "playlist" && (
           <div className="space-y-0.5">
             {/* Liked Songs */}
@@ -351,13 +352,14 @@ export function Sidebar() {
       <CreatePlaylistModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={(p: Playlist) => {
-          refreshPlaylists()
+        onSuccess={async (p: Playlist) => {
+          await refreshPlaylists()
           selectPlaylist(p.id)
         }}
       />
-
-      <AuthOverlay isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </aside>
+
+    <AuthOverlay isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+  </>
   )
 }
