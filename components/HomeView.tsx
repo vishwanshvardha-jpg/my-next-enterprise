@@ -1,11 +1,12 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ChevronLeft, ChevronRight, Grid, Heart, List, Play, UserPlus } from "lucide-react"
+import { ChevronLeft, ChevronRight, Grid, Heart, List, Play, UserCheck, UserPlus } from "lucide-react"
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import { TrackCard } from "components/TrackCard/TrackCard"
 import { TrackList } from "components/TrackList/TrackList"
+import { useFollowedArtists } from "hooks/useFollowedArtists"
 import { iTunesTrack } from "lib/itunes"
 import { useLibraryStore, usePlaybackStore } from "lib/store"
 import { Playlist } from "lib/types"
@@ -43,6 +44,7 @@ export function HomeView({
   const { activePlaylistId } = useLibraryStore()
   const { currentTrack, isPlaying, pause: handlePause } = usePlaybackStore()
   const { variant } = useFeatureFlag("default-view-mode")
+  const { followedArtists, toggleFollow, isFollowing } = useFollowedArtists()
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
 
@@ -74,16 +76,17 @@ export function HomeView({
   if (activePlaylistId === "home") {
     return (
       <div className="relative space-y-10">
-        {/* Ambient background gradients for Home View */}
+        {/* Ambient background gradients */}
         <div className="pointer-events-none absolute -top-40 right-0 h-[600px] w-[600px] rounded-full bg-aura-primary/[0.03] blur-[120px]" />
         <div className="pointer-events-none absolute top-[40%] -left-20 h-[500px] w-[500px] rounded-full bg-cyan-900/[0.05] blur-[120px]" />
+
         {/* ─── Hero Section ─── */}
         {!isSearching && searchQuery === "Top Hits" && featuredTrack && (
           <motion.section
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8 }}
-            className="relative h-[420px] w-full overflow-hidden rounded-3xl"
+            className="relative h-[260px] w-full overflow-hidden rounded-2xl"
           >
             {/* Background artwork */}
             <div className="absolute inset-0">
@@ -94,22 +97,20 @@ export function HomeView({
                 className="object-cover scale-110 blur-[2px]"
                 priority
               />
-              {/* Gradient overlays for depth */}
               <div className="absolute inset-0 bg-gradient-to-r from-aura-bg via-aura-bg/80 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-t from-aura-bg/60 via-transparent to-aura-bg/40" />
-              {/* Teal spotlight glow */}
-              <div className="absolute -left-20 top-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-aura-primary/[0.06] blur-[100px]" />
+              <div className="absolute -left-20 top-1/2 -translate-y-1/2 h-[300px] w-[300px] rounded-full bg-aura-primary/[0.06] blur-[80px]" />
             </div>
 
             {/* Content */}
-            <div className="relative z-10 flex h-full items-center px-10 lg:px-14">
-              <div className="max-w-lg space-y-5">
+            <div className="relative z-10 flex h-full items-center px-8 lg:px-12">
+              <div className="max-w-md space-y-3">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2, duration: 0.6 }}
                 >
-                  <h1 className="font-display text-3xl font-bold leading-[1.15] tracking-tight text-white lg:text-4xl xl:text-5xl line-clamp-2">
+                  <h1 className="font-display text-2xl font-bold leading-[1.2] tracking-tight text-white lg:text-3xl line-clamp-2">
                     <span className="text-white">{featuredTrack.artistName}:</span>{" "}
                     <span className="text-white/80">{featuredTrack.trackName}</span>
                   </h1>
@@ -119,18 +120,17 @@ export function HomeView({
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4, duration: 0.6 }}
-                  className="text-sm leading-relaxed text-white/50 max-w-md"
+                  className="text-xs leading-relaxed text-white/50 max-w-sm hidden sm:block"
                 >
-                  Discover the latest from {featuredTrack.artistName}. 
-                  {featuredTrack.primaryGenreName && ` Genre: ${featuredTrack.primaryGenreName}.`}
-                  {" "}Explore their discography and find your next favorite track.
+                  Discover the latest from {featuredTrack.artistName}.
+                  {featuredTrack.primaryGenreName && ` ${featuredTrack.primaryGenreName}.`}
                 </motion.p>
 
                 <motion.div
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6, duration: 0.6 }}
-                  className="flex items-center gap-3 pt-2"
+                  className="flex items-center gap-3"
                 >
                   <button
                     onClick={() => onPlayFromCard(featuredTrack, "search")}
@@ -139,17 +139,30 @@ export function HomeView({
                     <Play fill="currentColor" size={14} /> Play
                   </button>
                   <button
-                    onClick={() => handleToggleLike(featuredTrack)}
-                    className="btn-outline flex items-center gap-2 text-[12px] font-bold tracking-wider uppercase"
+                    onClick={() =>
+                      toggleFollow(
+                        featuredTrack.artistName,
+                        featuredTrack.artworkUrl100.replace("100x100bb.jpg", "400x400bb.jpg")
+                      )
+                    }
+                    className={`flex items-center gap-2 text-[12px] font-bold tracking-wider uppercase transition-all duration-200 ${
+                      isFollowing(featuredTrack.artistName)
+                        ? "btn-primary"
+                        : "btn-outline"
+                    }`}
                   >
-                    <UserPlus size={14} /> Follow
+                    {isFollowing(featuredTrack.artistName) ? (
+                      <><UserCheck size={14} /> Following</>
+                    ) : (
+                      <><UserPlus size={14} /> Follow</>
+                    )}
                   </button>
                 </motion.div>
               </div>
             </div>
 
-            {/* Hero artwork on right (visible on larger screens) */}
-            <div className="absolute right-0 top-0 bottom-0 w-[45%] hidden lg:block">
+            {/* Hero artwork right side */}
+            <div className="absolute right-0 top-0 bottom-0 w-[40%] hidden lg:block">
               <Image
                 src={featuredTrack.artworkUrl100.replace("100x100", "1000x1000")}
                 alt={featuredTrack.trackName}
@@ -184,10 +197,7 @@ export function HomeView({
               </div>
             </div>
 
-            <div
-              ref={albumsScrollRef}
-              className="no-scrollbar flex gap-5 overflow-x-auto pb-2"
-            >
+            <div ref={albumsScrollRef} className="no-scrollbar flex gap-5 overflow-x-auto pb-2">
               {tracks.slice(0, 12).map((track, i) => (
                 <motion.div
                   key={`album-${track.trackId}-${i}`}
@@ -205,13 +215,11 @@ export function HomeView({
                       sizes="160px"
                       className="object-cover transition-transform duration-500 group-hover:scale-110"
                     />
-                    {/* Hover play overlay */}
                     <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-all duration-300 group-hover:bg-black/40">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-aura-primary text-black opacity-0 shadow-lg transition-all duration-300 group-hover:opacity-100 group-hover:scale-100 scale-75">
                         <Play size={16} fill="currentColor" className="ml-0.5" />
                       </div>
                     </div>
-                    {/* Like button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -259,10 +267,7 @@ export function HomeView({
               </div>
             </div>
 
-            <div
-              ref={artistsScrollRef}
-              className="no-scrollbar flex gap-6 overflow-x-auto pb-2"
-            >
+            <div ref={artistsScrollRef} className="no-scrollbar flex gap-6 overflow-x-auto pb-2">
               {uniqueArtists.map((artist, i) => (
                 <motion.div
                   key={`artist-${artist.name}-${i}`}
@@ -272,7 +277,11 @@ export function HomeView({
                   className="group flex-shrink-0 flex flex-col items-center cursor-pointer"
                   onClick={() => onSearch(artist.name)}
                 >
-                  <div className="relative h-24 w-24 overflow-hidden rounded-full bg-aura-surface mb-3 ring-2 ring-transparent transition-all duration-300 group-hover:ring-aura-primary/40">
+                  <div className={`relative h-24 w-24 overflow-hidden rounded-full bg-aura-surface mb-3 ring-2 transition-all duration-300 ${
+                    isFollowing(artist.name)
+                      ? "ring-aura-primary/60"
+                      : "ring-transparent group-hover:ring-aura-primary/30"
+                  }`}>
                     <Image
                       src={artist.artwork}
                       alt={artist.name}
@@ -280,10 +289,79 @@ export function HomeView({
                       sizes="96px"
                       className="object-cover transition-transform duration-500 group-hover:scale-110"
                     />
+                    {/* Follow button overlay */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleFollow(artist.name, artist.artwork)
+                      }}
+                      className={`absolute bottom-0 left-0 right-0 flex items-center justify-center py-1.5 transition-all duration-200 ${
+                        isFollowing(artist.name)
+                          ? "bg-aura-primary/80 opacity-100"
+                          : "bg-black/60 opacity-0 group-hover:opacity-100"
+                      }`}
+                    >
+                      {isFollowing(artist.name) ? (
+                        <UserCheck size={12} className="text-black" />
+                      ) : (
+                        <UserPlus size={12} className="text-white" />
+                      )}
+                    </button>
                   </div>
                   <p className="text-[12px] font-semibold text-white/80 group-hover:text-white transition-colors text-center max-w-[96px] truncate">
                     {artist.name}
                   </p>
+                  {isFollowing(artist.name) && (
+                    <span className="mt-0.5 text-[10px] font-medium text-aura-primary">Following</span>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ─── Artists You Follow ─── */}
+        {followedArtists.length > 0 && !isSearching && searchQuery === "Top Hits" && (
+          <section className="space-y-5">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="font-display text-xl font-bold text-white">Artists You Follow</h2>
+              <span className="text-[11px] font-semibold text-aura-muted tracking-wide">
+                {followedArtists.length} following
+              </span>
+            </div>
+            <div className="no-scrollbar flex gap-6 overflow-x-auto pb-2">
+              {followedArtists.map((artist, i) => (
+                <motion.div
+                  key={`following-${artist.name}-${i}`}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.05, duration: 0.4 }}
+                  className="group flex-shrink-0 flex flex-col items-center cursor-pointer"
+                  onClick={() => onSearch(artist.name)}
+                >
+                  <div className="relative h-24 w-24 overflow-hidden rounded-full bg-aura-surface mb-3 ring-2 ring-aura-primary/40 transition-all duration-300 group-hover:ring-aura-primary/70">
+                    <Image
+                      src={artist.artwork}
+                      alt={artist.name}
+                      fill
+                      sizes="96px"
+                      className="object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                    {/* Unfollow overlay */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleFollow(artist.name, artist.artwork)
+                      }}
+                      className="absolute bottom-0 left-0 right-0 flex items-center justify-center py-1.5 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    >
+                      <span className="text-[9px] font-bold text-white/80 tracking-wide uppercase">Unfollow</span>
+                    </button>
+                  </div>
+                  <p className="text-[12px] font-semibold text-white/80 group-hover:text-white transition-colors text-center max-w-[96px] truncate">
+                    {artist.name}
+                  </p>
+                  <span className="mt-0.5 text-[10px] font-medium text-aura-primary">Following</span>
                 </motion.div>
               ))}
             </div>
@@ -324,7 +402,7 @@ export function HomeView({
             <h2 className="font-display text-xl font-bold text-white">
               {searchQuery === "Top Hits" ? "Trending Now" : `Results for "${searchQuery}"`}
             </h2>
-            
+
             <div className="flex items-center gap-1 rounded-lg bg-white/[0.03] p-1">
               <button
                 onClick={() => setViewMode("list")}

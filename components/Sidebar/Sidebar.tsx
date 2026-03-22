@@ -1,14 +1,26 @@
-import { ChevronLeft, Heart, Home, Library, LogIn, Music, Plus, Trash2, Users } from "lucide-react"
-import Image from "next/image"
+"use client"
+
+import { ChevronLeft, Clock, Heart, LayoutGrid, Music, Plus, Trash2, Users, X } from "lucide-react"
 import { useFeatureFlagEnabled } from "posthog-js/react"
 import { useEffect, useState } from "react"
 import { AuthOverlay } from "components/Auth/AuthOverlay"
 import { CreatePlaylistModal } from "components/Playlist/CreatePlaylistModal"
 import { useAuth } from "components/Providers/AuthProvider"
 import { Tooltip } from "components/Tooltip/Tooltip"
-import { iTunesTrack } from "lib/itunes"
-import { useLibraryStore, usePlaybackStore, useUIStore } from "lib/store"
+import { useLibraryStore, useUIStore } from "lib/store"
 import { Playlist } from "lib/types"
+
+function WaveformLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 16" className={className} fill="currentColor" aria-hidden="true">
+      <rect x="0" y="6" width="3" height="10" rx="1.5" opacity="0.45" />
+      <rect x="4.25" y="3" width="3" height="13" rx="1.5" opacity="0.7" />
+      <rect x="8.5" y="0" width="3" height="16" rx="1.5" />
+      <rect x="12.75" y="3" width="3" height="13" rx="1.5" opacity="0.7" />
+      <rect x="17" y="6" width="3" height="10" rx="1.5" opacity="0.45" />
+    </svg>
+  )
+}
 
 export function Sidebar() {
   const { user } = useAuth()
@@ -16,8 +28,10 @@ export function Sidebar() {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
   const isProminent = mounted && flagEnabled === true
+
   const {
     playlists,
+    likedSongs,
     activePlaylistId: activeId,
     selectPlaylist,
     fetchInitialData,
@@ -26,54 +40,16 @@ export function Sidebar() {
     refreshPlaylists,
   } = useLibraryStore()
 
-  const { currentTrack, isPlaying } = usePlaybackStore()
-  const { isSidebarCollapsed, toggleSidebar } = useUIStore()
+  const { isSidebarCollapsed, toggleSidebar, setMobileSidebarOpen } = useUIStore()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<"playlist" | "recent" | "recommended">("playlist")
-  const [recentTracks, setRecentTracks] = useState<iTunesTrack[]>([])
 
   useEffect(() => {
     fetchInitialData(user)
   }, [user, fetchInitialData])
 
-  // Read recently played from localStorage (same source as HomeView)
-  useEffect(() => {
-    const loadRecent = () => {
-      try {
-        const stored = localStorage.getItem("aura_recent_tracks")
-        if (stored) setRecentTracks(JSON.parse(stored) as iTunesTrack[])
-      } catch (e) {
-        console.error(e)
-      }
-    }
-    loadRecent()
-    // Listen for storage changes so sidebar updates when a track is played
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === "aura_recent_tracks") loadRecent()
-    }
-    // Also poll periodically since same-tab localStorage writes don't fire StorageEvent
-    const interval = setInterval(loadRecent, 2000)
-    window.addEventListener("storage", handleStorage)
-    return () => {
-      window.removeEventListener("storage", handleStorage)
-      clearInterval(interval)
-    }
-  }, [])
-
-  const handleLikedSongsClick = () => {
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
-    selectPlaylist("liked")
-  }
-
   const handleCreateClick = () => {
-    if (!user) {
-      setIsAuthOpen(true)
-      return
-    }
+    if (!user) { setIsAuthOpen(true); return }
     setIsModalOpen(true)
   }
 
@@ -88,17 +64,47 @@ export function Sidebar() {
     }
   }
 
+  const handleNavClick = (id: string) => {
+    if (id === "recent") {
+      selectPlaylist("recent")
+      setMobileSidebarOpen(false)
+    } else if (id === "liked") {
+      if (!user) { setIsAuthOpen(true); return }
+      selectPlaylist("liked")
+      setMobileSidebarOpen(false)
+    } else {
+      // My Playlists — navigate home if we're on a special page
+      if (activeId === "recent" || activeId === "liked") {
+        selectPlaylist("home")
+        window.dispatchEvent(new CustomEvent("aura-home-reset"))
+      }
+    }
+  }
+
+  const getNavActive = (id: string) => {
+    if (id === "recent") return activeId === "recent"
+    if (id === "liked") return activeId === "liked"
+    return activeId !== "recent" && activeId !== "liked"
+  }
+
+  const ownPlaylists = playlists.filter((p) => !p.isShared)
+  const sharedPlaylists = playlists.filter((p) => p.isShared)
+
+  const navItems = [
+    { id: "playlist", label: "My Playlists", Icon: LayoutGrid, count: undefined },
+    { id: "recent", label: "Recent", Icon: Clock, count: undefined },
+    { id: "liked", label: "Liked Songs", Icon: Heart, count: likedSongs.length > 0 ? likedSongs.length : undefined },
+  ]
+
   return (
     <>
-    <aside
-      className={`glass-sidebar relative flex h-full flex-col font-sans transition-all duration-300 ${
-        isSidebarCollapsed ? "w-20" : "w-72"
-      }`}
-    >
-      {/* Header */}
-      <div className="flex-shrink-0 p-5">
-        {/* Branding & Toggle */}
-        <div className="mb-8 flex items-center justify-between">
+      <aside
+        className={`glass-sidebar relative flex h-full flex-col font-sans transition-all duration-300 ${
+          isSidebarCollapsed ? "w-20" : "w-72"
+        }`}
+      >
+        {/* ── Header ── */}
+        <div className="flex h-[72px] flex-shrink-0 items-center justify-between border-b border-white/[0.06] px-5">
           <div
             onClick={() => {
               if (isSidebarCollapsed) {
@@ -106,6 +112,7 @@ export function Sidebar() {
               } else {
                 selectPlaylist("home")
                 window.dispatchEvent(new CustomEvent("aura-home-reset"))
+                setMobileSidebarOpen(false)
               }
             }}
             className={`group flex cursor-pointer items-center gap-3 ${
@@ -113,253 +120,257 @@ export function Sidebar() {
             }`}
             title={isSidebarCollapsed ? "Expand sidebar" : "Go home"}
           >
-            <div className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-aura-primary/15">
-              <Music className="h-4 w-4 text-aura-primary" />
+            <div className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-aura-primary/20 to-aura-primary/5">
+              <WaveformLogo className="h-4 w-5 text-aura-primary" />
               <div className="absolute inset-0 rounded-xl bg-aura-primary/10 animate-glow-pulse" />
             </div>
             {!isSidebarCollapsed && (
-              <span className="font-display text-lg font-bold tracking-tight text-white">
-                Aura Music
+              <span className="font-display text-xl font-bold tracking-tight text-white">
+                Repose Music
               </span>
             )}
           </div>
 
           {!isSidebarCollapsed && (
-            <button
-              onClick={toggleSidebar}
-              className="text-aura-muted rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white"
-            >
-              <ChevronLeft size={18} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setMobileSidebarOpen(false)}
+                className="text-aura-muted rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white lg:hidden"
+                aria-label="Close menu"
+              >
+                <X size={18} />
+              </button>
+              <button
+                onClick={toggleSidebar}
+                className="text-aura-muted hidden rounded-lg p-1.5 transition-all hover:bg-white/5 hover:text-white lg:flex"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Sidebar Tabs */}
-        {!isSidebarCollapsed && (
-          <div className="mb-6 flex items-center gap-1 rounded-xl bg-white/[0.03] p-1">
-            {[
-              { id: "playlist" as const, label: "My Playlist" },
-              { id: "recent" as const, label: "Last Listening" },
-              { id: "recommended" as const, label: "Recommended" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 rounded-lg px-2 py-2 text-[10px] font-semibold tracking-wide transition-all ${
-                  activeTab === tab.id
-                    ? "bg-white/[0.08] text-white shadow-sm"
-                    : "text-aura-muted hover:text-white/70"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Navigation */}
-        {isSidebarCollapsed && (
-          <nav className="space-y-1">
-            <Tooltip side="right" sideOffset={20} explainer="Home" open={undefined}>
-              <button
-                onClick={() => {
-                  selectPlaylist("home")
-                  window.dispatchEvent(new CustomEvent("aura-home-reset"))
-                }}
-                className={`group relative flex w-full items-center justify-center rounded-xl p-3 transition-all ${
-                  !activeId || activeId === "home"
-                    ? "bg-aura-primary/10 text-aura-primary"
-                    : "text-aura-muted hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <Home className="h-5 w-5 flex-shrink-0" />
-              </button>
-            </Tooltip>
-
-            <Tooltip side="right" sideOffset={20} explainer="My Library" open={undefined}>
-              <button
-                onClick={() => selectPlaylist("library")}
-                className={`group relative flex w-full items-center justify-center rounded-xl p-3 transition-all ${
-                  activeId === "library"
-                    ? "bg-aura-primary/10 text-aura-primary"
-                    : "text-aura-muted hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <Library className="h-5 w-5 flex-shrink-0" />
-              </button>
-            </Tooltip>
-          </nav>
-        )}
-      </div>
-
-      {/* Queue / Track List */}
-      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-6">
-        {activeTab === "playlist" && (
-          <div className="space-y-0.5">
-            {/* Liked Songs */}
-            <Tooltip side="right" sideOffset={20} explainer="Liked Songs" open={isSidebarCollapsed ? undefined : false}>
-              <button
-                onClick={handleLikedSongsClick}
-                className={`group relative flex w-full items-center ${isSidebarCollapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'} rounded-xl transition-all ${
-                  activeId === "liked"
-                    ? "bg-aura-primary/10 text-white"
-                    : "text-aura-muted hover:bg-white/[0.04] hover:text-white"
-                }`}
-              >
-                <div className={`${isSidebarCollapsed ? 'h-5 w-5' : 'h-7 w-7'} flex flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-aura-primary/30 to-aura-secondary/30`}>
-                  {user ? (
-                    <Heart size={isSidebarCollapsed ? 14 : 12} fill="currentColor" className="text-aura-primary" />
-                  ) : (
-                    <LogIn size={isSidebarCollapsed ? 14 : 12} className="text-aura-primary" />
-                  )}
-                </div>
-                {!isSidebarCollapsed && <span className="text-sm font-medium truncate">Liked Songs</span>}
-              </button>
-            </Tooltip>
-
-            {/* Playlists */}
-            {playlists.map((playlist) => (
-              <div key={playlist.id} className="group relative">
-                <Tooltip side="right" sideOffset={20} explainer={playlist.name} open={isSidebarCollapsed ? undefined : false}>
+        {/* ── Nav Items ── */}
+        <div className="flex-shrink-0 px-3 pt-3 pb-1">
+          {isSidebarCollapsed ? (
+            <nav className="space-y-1">
+              {navItems.map(({ id, label, Icon }) => (
+                <Tooltip key={id} side="right" sideOffset={20} explainer={label} open={undefined}>
                   <button
-                    onClick={() => selectPlaylist(playlist.id)}
-                    className={`relative flex w-full items-center ${isSidebarCollapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'} rounded-xl transition-all ${
+                    onClick={() => handleNavClick(id)}
+                    className={`flex w-full items-center justify-center rounded-xl p-3 transition-all ${
+                      getNavActive(id)
+                        ? "bg-aura-primary/10 text-aura-primary"
+                        : "text-aura-muted hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                  </button>
+                </Tooltip>
+              ))}
+            </nav>
+          ) : (
+            <nav className="space-y-0.5">
+              {navItems.map(({ id, label, Icon, count }) => {
+                const isActive = getNavActive(id)
+                return (
+                  <button
+                    key={id}
+                    onClick={() => handleNavClick(id)}
+                    className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${
+                      isActive ? "text-white" : "text-aura-muted hover:bg-white/[0.04] hover:text-white"
+                    }`}
+                  >
+                    {isActive && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[3px] rounded-r-full bg-aura-primary" />
+                    )}
+                    <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${
+                      isActive ? "bg-aura-primary/15 text-aura-primary" : "bg-white/[0.06] text-aura-muted"
+                    }`}>
+                      <Icon size={15} />
+                    </div>
+                    <div className="min-w-0 flex-1 text-left">
+                      <p className="text-sm font-medium leading-snug">{label}</p>
+                      {count !== undefined && (
+                        <p className="text-[11px] text-aura-muted">{count} songs</p>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </nav>
+          )}
+        </div>
+
+        {/* ── Scrollable Playlists ── */}
+        <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2">
+
+          {/* Expanded: Your Playlists + Shared Playlists */}
+          {!isSidebarCollapsed && (
+            <>
+              <div className="mt-3">
+                <div className="mb-2 flex items-center justify-between px-3">
+                  <span className="text-[10px] font-bold tracking-[0.15em] text-aura-muted uppercase">
+                    Your Playlists
+                  </span>
+                  <Tooltip side="right" sideOffset={8} explainer="New Playlist">
+                    <button
+                      onClick={handleCreateClick}
+                      className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition-all ${
+                        isProminent
+                          ? "bg-aura-primary/15 text-aura-primary hover:bg-aura-primary/25"
+                          : "bg-white/[0.06] text-white/60 hover:bg-white/[0.10] hover:text-white"
+                      }`}
+                    >
+                      <Plus size={11} />
+                      New
+                    </button>
+                  </Tooltip>
+                </div>
+
+                {ownPlaylists.length === 0 ? (
+                  <p className="px-3 py-3 text-[12px] text-aura-muted">No playlists yet. Create one!</p>
+                ) : (
+                  <div className="space-y-0.5">
+                    {ownPlaylists.map((playlist) => (
+                      <PlaylistRow
+                        key={playlist.id}
+                        playlist={playlist}
+                        isActive={activeId === playlist.id}
+                        onSelect={() => { selectPlaylist(playlist.id); setMobileSidebarOpen(false) }}
+                        onDelete={(e) => handleDeletePlaylist(e, playlist)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {sharedPlaylists.length > 0 && (
+                <div className="mt-5">
+                  <div className="mb-2 px-3">
+                    <span className="text-[10px] font-bold tracking-[0.15em] text-aura-muted uppercase">
+                      Shared Playlists
+                    </span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {sharedPlaylists.map((playlist) => (
+                      <PlaylistRow
+                        key={playlist.id}
+                        playlist={playlist}
+                        isActive={activeId === playlist.id}
+                        onSelect={() => { selectPlaylist(playlist.id); setMobileSidebarOpen(false) }}
+                        onDelete={(e) => handleDeletePlaylist(e, playlist)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Collapsed: all playlists as icons */}
+          {isSidebarCollapsed && (
+            <div className="mt-2 space-y-0.5">
+              {playlists.map((playlist) => (
+                <Tooltip
+                  key={playlist.id}
+                  side="right"
+                  sideOffset={20}
+                  explainer={playlist.name}
+                  open={undefined}
+                >
+                  <button
+                    onClick={() => { selectPlaylist(playlist.id); setMobileSidebarOpen(false) }}
+                    className={`relative flex w-full items-center justify-center rounded-xl p-3 transition-all ${
                       activeId === playlist.id
                         ? "bg-white/[0.06] text-white"
                         : "text-aura-muted hover:bg-white/[0.04] hover:text-white"
                     }`}
                   >
-                    <div className={`bg-white/[0.06] text-aura-muted group-hover:text-aura-primary flex flex-shrink-0 items-center justify-center rounded-lg transition-colors ${isSidebarCollapsed ? 'h-6 w-6' : 'h-7 w-7'}`}>
-                      <Music size={isSidebarCollapsed ? 14 : 12} />
+                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/[0.06] text-aura-muted">
+                      <Music size={12} />
                     </div>
-                    {!isSidebarCollapsed && (
-                      <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate">
-                        <span className="truncate text-sm font-medium">{playlist.name}</span>
-                        {playlist.isShared && <Users size={10} className="text-aura-primary flex-shrink-0 opacity-70" />}
-                      </span>
-                    )}
                   </button>
                 </Tooltip>
-                {!isSidebarCollapsed && (
-                  <button
-                    onClick={(e) => handleDeletePlaylist(e, playlist)}
-                    title={playlist.isShared ? "Leave playlist" : "Delete playlist"}
-                    className={`text-aura-muted absolute top-1/2 right-3 -translate-y-1/2 p-1 opacity-0 transition-all group-hover:opacity-100 ${
-                      playlist.isShared ? "hover:text-yellow-400" : "hover:text-red-400"
-                    }`}
-                  >
-                    <Trash2 size={11} />
-                  </button>
-                )}
-              </div>
-            ))}
-
-            {/* Create Playlist */}
-            <Tooltip side="right" sideOffset={20} explainer={isProminent ? "New Playlist" : "Create"} open={isSidebarCollapsed ? undefined : false}>
-              <button
-                onClick={handleCreateClick}
-                className={`mt-2 flex w-full items-center ${isSidebarCollapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'} rounded-xl transition-all ${
-                  isProminent
-                    ? "bg-aura-primary/10 text-aura-primary hover:bg-aura-primary/15"
-                    : "text-aura-muted hover:bg-white/[0.04] hover:text-white"
-                }`}
-              >
-                <div className={`flex flex-shrink-0 items-center justify-center rounded-lg border border-dashed border-white/15 ${isSidebarCollapsed ? 'h-6 w-6' : 'h-7 w-7'}`}>
-                  <Plus size={isSidebarCollapsed ? 14 : 12} />
-                </div>
-                {!isSidebarCollapsed && (
-                  <span className="text-sm font-medium">
-                    {isProminent ? "New Playlist" : "Create"}
-                  </span>
-                )}
-              </button>
-            </Tooltip>
-          </div>
-        )}
-
-        {/* Recently played tracks in sidebar */}
-        {(activeTab === "recent" || activeTab === "recommended") && !isSidebarCollapsed && (
-          <div className="space-y-0.5">
-            {recentTracks.length > 0 ? (
-              recentTracks.map((track: iTunesTrack, index: number) => {
-                const isActive = currentTrack?.trackId === track.trackId
-                return (
-                  <div
-                    key={`${track.trackId}-${index}`}
-                    className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 cursor-pointer transition-all ${
-                      isActive
-                        ? "bg-aura-primary/10 active-track-indicator"
-                        : "hover:bg-white/[0.04]"
-                    }`}
-                  >
-                    {/* Track Number */}
-                    <span className={`w-5 text-right text-xs font-medium tabular-nums ${
-                      isActive ? "text-aura-primary" : "text-aura-muted"
-                    }`}>
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-
-                    {/* Track Artwork (small) */}
-                    {track.artworkUrl100 && (
-                      <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-lg">
-                        <Image
-                          src={track.artworkUrl100}
-                          alt={track.trackName}
-                          fill
-                          sizes="32px"
-                          className="object-cover"
-                        />
-                        {isActive && isPlaying && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                            <div className="flex items-end gap-[2px] h-3">
-                              <span className="w-[2px] h-full bg-aura-primary animate-pulse rounded-full" />
-                              <span className="w-[2px] h-2/3 bg-aura-primary animate-pulse rounded-full [animation-delay:0.2s]" />
-                              <span className="w-[2px] h-full bg-aura-primary animate-pulse rounded-full [animation-delay:0.4s]" />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Track Info */}
-                    <div className="min-w-0 flex-1">
-                      <p className={`truncate text-[13px] font-medium leading-tight ${
-                        isActive ? "text-white" : "text-white/80"
-                      }`}>
-                        {track.trackName}
-                      </p>
-                      <p className="truncate text-[11px] text-aura-muted">
-                        {track.artistName}
-                      </p>
-                    </div>
+              ))}
+              <Tooltip side="right" sideOffset={20} explainer="New Playlist" open={undefined}>
+                <button
+                  onClick={handleCreateClick}
+                  className="flex w-full items-center justify-center rounded-xl p-3 text-aura-muted transition-all hover:bg-white/[0.04] hover:text-white"
+                >
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-dashed border-white/15">
+                    <Plus size={12} />
                   </div>
-                )
-              })
-            ) : (
-              <div className="py-12 text-center">
-                <Music className="mx-auto mb-3 h-8 w-8 text-aura-muted/40" />
-                <p className="text-xs text-aura-muted">
-                  {activeTab === "recent" ? "Play some tracks to see them here" : "Suggestions coming soon"}
-                </p>
-              </div>
-            )}
-          </div>
+                </button>
+              </Tooltip>
+            </div>
+          )}
+        </div>
+
+        <CreatePlaylistModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={async (p: Playlist) => {
+            await refreshPlaylists()
+            selectPlaylist(p.id)
+          }}
+        />
+      </aside>
+
+      <AuthOverlay isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+    </>
+  )
+}
+
+// ── Playlist Row sub-component ────────────────────────────────────────────────
+function PlaylistRow({
+  playlist,
+  isActive,
+  onSelect,
+  onDelete,
+}: {
+  playlist: Playlist
+  isActive: boolean
+  onSelect: () => void
+  onDelete: (e: React.MouseEvent) => void
+}) {
+  return (
+    <div className="group relative">
+      <button
+        onClick={onSelect}
+        className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${
+          isActive
+            ? "bg-white/[0.06] text-white"
+            : "text-aura-muted hover:bg-white/[0.04] hover:text-white"
+        }`}
+      >
+        {isActive && (
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[3px] rounded-r-full bg-aura-primary" />
         )}
+        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${
+          playlist.isShared
+            ? "bg-aura-primary/10 text-aura-primary"
+            : "bg-white/[0.06] text-aura-muted group-hover:text-aura-primary"
+        }`}>
+          {playlist.isShared ? <Users size={14} /> : <Music size={13} />}
+        </div>
+        <div className="min-w-0 flex-1 text-left">
+          <p className="truncate text-sm font-medium">{playlist.name}</p>
+          {playlist.trackCount !== undefined && playlist.trackCount > 0 && (
+            <p className="text-[11px] text-aura-muted">{playlist.trackCount} songs</p>
+          )}
+        </div>
+      </button>
 
-
-      </div>
-
-      <CreatePlaylistModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={async (p: Playlist) => {
-          await refreshPlaylists()
-          selectPlaylist(p.id)
-        }}
-      />
-    </aside>
-
-    <AuthOverlay isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
-  </>
+      <button
+        onClick={onDelete}
+        title={playlist.isShared ? "Leave playlist" : "Delete playlist"}
+        className={`text-aura-muted absolute top-1/2 right-3 -translate-y-1/2 p-1 opacity-0 transition-all group-hover:opacity-100 ${
+          playlist.isShared ? "hover:text-yellow-400" : "hover:text-red-400"
+        }`}
+      >
+        <Trash2 size={11} />
+      </button>
+    </div>
   )
 }

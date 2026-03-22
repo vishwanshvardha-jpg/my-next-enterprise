@@ -17,7 +17,7 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: "AuraMusic Preview Player",
+  title: "Repose Music",
   description: "Search for tracks and play 30-second preview clips powered by the iTunes Search API",
 }
 

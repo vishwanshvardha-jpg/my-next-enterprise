@@ -1,6 +1,6 @@
 "use client"
 
-import { ListMusic, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react"
+import { Pause, Play, Repeat, Shuffle, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react"
 import Image from "next/image"
 import posthog from "posthog-js"
 import { useEffect, useRef, useState } from "react"
@@ -185,11 +185,8 @@ export function NowPlayingBar() {
           </div>
         </div>
 
-        {/* Volume + Queue — Right */}
+        {/* Volume — Right */}
         <div className="hidden w-[28%] items-center justify-end gap-4 lg:flex">
-          <button className="text-aura-muted transition-colors hover:text-white">
-            <ListMusic size={17} />
-          </button>
           <div className="group flex w-28 items-center gap-2 rounded-lg bg-white/[0.04] px-2.5 py-1.5">
             <button
               onClick={() => setIsMuted(!isMuted)}
