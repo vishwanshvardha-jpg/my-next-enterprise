@@ -90,7 +90,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   selectPlaylist: (id) => {
     const { fetchPlaylistTracks } = get();
     set({ activePlaylistId: id, isAddingSongs: false, playlistTracks: [] });
-    if (id !== 'home') {
+    if (id !== 'home' && id !== 'recent') {
       fetchPlaylistTracks(id as string);
     }
   },
