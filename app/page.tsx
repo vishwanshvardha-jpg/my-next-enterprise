@@ -10,9 +10,9 @@ import { LibraryView } from "components/LibraryView"
 import { NowPlayingBar } from "components/NowPlayingBar/NowPlayingBar"
 import { NowPlayingBarV2 } from "components/NowPlayingBar/NowPlayingBarV2"
 import { RightNowPlayingPanel } from "components/NowPlayingBar/RightNowPlayingPanel"
+import { useAuth } from "components/Providers/AuthProvider"
 import { PlaylistView } from "components/PlaylistView"
 import { RecentlyPlayedView, type RecentTrack } from "components/RecentlyPlayedView"
-import { useAuth } from "components/Providers/AuthProvider"
 import { Sidebar } from "components/Sidebar/Sidebar"
 import { TopNav } from "components/TopNav/TopNav"
 import { useFollowedArtists } from "hooks/useFollowedArtists"
@@ -99,7 +99,6 @@ export default function AuraMusicPage() {
     if (initialSearchFired.current) return
     initialSearchFired.current = true
     handleSearch("Top Hits")
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Effect 3: home reset event listener — registered once, always calls latest handleSearch via ref

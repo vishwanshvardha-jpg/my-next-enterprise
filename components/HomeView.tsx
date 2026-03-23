@@ -6,11 +6,11 @@ import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import { TrackCard } from "components/TrackCard/TrackCard"
 import { TrackList } from "components/TrackList/TrackList"
+import { useFeatureFlag } from "hooks/useFeatureFlag"
 import { FollowedArtist } from "hooks/useFollowedArtists"
 import { iTunesTrack } from "lib/itunes"
 import { useLibraryStore, usePlaybackStore } from "lib/store"
 import { Playlist } from "lib/types"
-import { useFeatureFlag } from "hooks/useFeatureFlag"
 
 interface HomeViewProps {
   tracks: (iTunesTrack & { addedAt?: string })[]
