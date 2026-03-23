@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion"
 import posthog from "posthog-js"
 import { useFeatureFlagEnabled } from "posthog-js/react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { AuthOverlay } from "components/Auth/AuthOverlay"
 import { HomeView } from "components/HomeView"
 import { LibraryView } from "components/LibraryView"
@@ -15,6 +15,7 @@ import { RecentlyPlayedView, type RecentTrack } from "components/RecentlyPlayedV
 import { useAuth } from "components/Providers/AuthProvider"
 import { Sidebar } from "components/Sidebar/Sidebar"
 import { TopNav } from "components/TopNav/TopNav"
+import { useFollowedArtists } from "hooks/useFollowedArtists"
 import { iTunesTrack } from "lib/itunes"
 import { useLibraryStore, usePlaybackStore, useUIStore } from "lib/store"
 
@@ -48,6 +49,9 @@ export default function AuraMusicPage() {
 
   // UI Store
   const { isSidebarCollapsed, isNowPlayingPanelOpen, isMobileSidebarOpen, setMobileSidebarOpen } = useUIStore()
+
+  // Followed artists — single instance shared with HomeView and RightNowPlayingPanel
+  const { followedArtists, toggleFollow, isFollowing } = useFollowedArtists()
 
   // ─── Search Logic ───────────────────────────────────────────────
   const handleSearch = useCallback(
@@ -84,14 +88,33 @@ export default function AuraMusicPage() {
     handleSearch("Top Hits")
   }, [handleSearch])
 
+  // Effect 1: fetch library data when user identity changes (login/logout only)
   useEffect(() => {
     fetchLibraryData(user)
-    handleSearch("Top Hits")
+  }, [user, fetchLibraryData])
 
-    const handleHomeReset = () => handleClearSearch()
-    window.addEventListener("aura-home-reset", handleHomeReset)
-    return () => window.removeEventListener("aura-home-reset", handleHomeReset)
-  }, [user, fetchLibraryData, handleSearch, handleClearSearch])
+  // Effect 2: initial "Top Hits" search — runs once on mount, never again
+  const initialSearchFired = useRef(false)
+  useEffect(() => {
+    if (initialSearchFired.current) return
+    initialSearchFired.current = true
+    handleSearch("Top Hits")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Effect 3: home reset event listener — registered once, always calls latest handleSearch via ref
+  const handleSearchRef = useRef(handleSearch)
+  useEffect(() => { handleSearchRef.current = handleSearch })
+
+  useEffect(() => {
+    const handler = () => {
+      setIsSearching(false)
+      setSearchQuery("Top Hits")
+      handleSearchRef.current("Top Hits")
+    }
+    window.addEventListener("aura-home-reset", handler)
+    return () => window.removeEventListener("aura-home-reset", handler)
+  }, [])
 
   useEffect(() => {
     if (tracks.length > 0 && !featuredTrack) {
@@ -175,6 +198,9 @@ export default function AuraMusicPage() {
           handleAddToPlaylist={handleAddToPlaylist}
           likedSongIds={likedSongIds}
           playlists={playlists}
+          followedArtists={followedArtists}
+          toggleFollow={toggleFollow}
+          isFollowing={isFollowing}
         />
       )
     }
@@ -264,7 +290,7 @@ export default function AuraMusicPage() {
       {rightPanelFlagEnabled ? <NowPlayingBarV2 /> : <NowPlayingBar />}
 
       {/* Right Now Playing Panel */}
-      {rightPanelFlagEnabled && <RightNowPlayingPanel />}
+      {rightPanelFlagEnabled && <RightNowPlayingPanel toggleFollow={toggleFollow} isFollowing={isFollowing} />}
 
       <AuthOverlay isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </div>

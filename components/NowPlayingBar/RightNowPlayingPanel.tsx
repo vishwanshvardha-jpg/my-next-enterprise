@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion"
 import { Calendar, Disc3, ExternalLink, Music2, UserCheck, UserPlus, X } from "lucide-react"
 import Image from "next/image"
 import { useEffect } from "react"
-import { useFollowedArtists } from "hooks/useFollowedArtists"
 import { usePlaybackStore, useUIStore } from "lib/store"
 
 function InfoRow({ label, value }: { label: string; value: string | number | undefined }) {
@@ -19,10 +18,14 @@ function InfoRow({ label, value }: { label: string; value: string | number | und
   )
 }
 
-export function RightNowPlayingPanel() {
+interface RightNowPlayingPanelProps {
+  toggleFollow: (name: string, artwork: string) => void
+  isFollowing: (name: string) => boolean
+}
+
+export function RightNowPlayingPanel({ toggleFollow, isFollowing }: RightNowPlayingPanelProps) {
   const { currentTrack: track } = usePlaybackStore()
   const { isNowPlayingPanelOpen, setNowPlayingPanelOpen } = useUIStore()
-  const { toggleFollow, isFollowing } = useFollowedArtists()
 
   // Auto-close panel when there's no track (e.g. on page refresh before a song plays)
   useEffect(() => {

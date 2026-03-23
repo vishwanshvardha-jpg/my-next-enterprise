@@ -2,7 +2,7 @@
 
 import { Session, User } from "@supabase/supabase-js"
 import posthog from "posthog-js"
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react"
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react"
 
 import { createClient } from "lib/supabase/client"
 
@@ -19,15 +19,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     const getSession = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession()
+      const newUser = session?.user ?? null
       setSession(session)
-      setUser(session?.user ?? null)
+      setUser(prev => (prev?.id === newUser?.id ? prev : newUser))
       setIsLoading(false)
     }
 
@@ -38,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const newUser = session?.user ?? null
       setSession(session)
-      setUser(newUser)
+      setUser(prev => (prev?.id === newUser?.id ? prev : newUser))
       setIsLoading(false)
 
       if (newUser) {
