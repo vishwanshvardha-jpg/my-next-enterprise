@@ -32,6 +32,7 @@ export function PlaylistView({
     playlistTracks,
     currentPlaylistName,
     isAddingSongs,
+    isLoading,
     setAddingSongs,
     playlistSearchTracks,
     handlePlaylistSearch,
@@ -334,7 +335,7 @@ export function PlaylistView({
             isPlaying={isPlaying}
             onPlay={(t) => onPlayFromCard(t, activePlaylistId === "liked" ? "library" : "playlist")}
             onPause={handlePause}
-            isLoading={false}
+            isLoading={isLoading}
             likedSongIds={likedSongIds}
             onToggleLike={handleToggleLike}
             viewMode={viewMode}

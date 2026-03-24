@@ -33,5 +33,11 @@ export interface PendingInvite {
 export interface LikedSong {
   trackId: number
   createdAt: string
-  trackData: iTunesTrack
+  trackData: iTunesTrack | null
+}
+
+export interface PlaylistSong {
+  trackId: number
+  position: number
+  addedAt: string
 }

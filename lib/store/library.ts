@@ -2,6 +2,7 @@ import posthog from 'posthog-js';
 import { create } from 'zustand';
 import { getLikedSongs, toggleLikeSong } from 'lib/actions/liked-songs';
 import { addSongToPlaylist as addSongAction, deletePlaylist as deletePlaylistAction, getPlaylists, getPlaylistSongs, leavePlaylist as leavePlaylistAction, updatePlaylist as updatePlaylistAction } from 'lib/actions/playlists';
+import { lookupTracks } from 'lib/actions/tracks';
 import { iTunesTrack } from 'lib/itunes';
 import { LikedSong, Playlist } from 'lib/types';
 
@@ -15,6 +16,7 @@ interface LibraryState {
   playlists: Playlist[];
   activePlaylistId: string | 'liked' | 'library' | 'home';
   playlistTracks: (iTunesTrack & { addedAt?: string })[];
+  playlistTracksCache: Record<string, (iTunesTrack & { addedAt?: string })[]>;
   currentPlaylistName: string;
   isAddingSongs: boolean;
   playlistSearchTracks: iTunesTrack[];
@@ -40,6 +42,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   playlists: [],
   activePlaylistId: 'home',
   playlistTracks: [],
+  playlistTracksCache: {},
   currentPlaylistName: '',
   isAddingSongs: false,
   playlistSearchTracks: [],
@@ -65,31 +68,49 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   fetchPlaylistTracks: async (id) => {
-    set({ isLoading: true });
     try {
+      let tracks: (iTunesTrack & { addedAt?: string })[] = [];
+
       if (id === 'liked') {
-        set({ currentPlaylistName: 'Liked Songs' });
         const songs = await getLikedSongs();
-        set({ playlistTracks: songs.map((s: LikedSong) => ({ ...s.trackData, addedAt: s.createdAt })) });
+        const trackMap = await lookupTracks(songs.map(s => s.trackId));
+        tracks = songs
+          .filter(s => trackMap.has(s.trackId))
+          .map(s => ({ ...trackMap.get(s.trackId)!, addedAt: s.createdAt }));
       } else if (id === 'library') {
-        set({ currentPlaylistName: 'My Library', playlistTracks: [] });
+        tracks = [];
       } else {
-        const { playlists } = get();
-        const p = playlists.find(pl => pl.id === id);
-        set({ currentPlaylistName: p?.name || 'Playlist' });
         const songs = await getPlaylistSongs(id);
-        set({ playlistTracks: songs as (iTunesTrack & { addedAt?: string })[] });
+        const trackMap = await lookupTracks(songs.map(s => s.trackId));
+        tracks = songs
+          .filter(s => trackMap.has(s.trackId))
+          .map(s => ({ ...trackMap.get(s.trackId)!, addedAt: s.addedAt }));
       }
+
+      set(state => ({
+        playlistTracksCache: { ...state.playlistTracksCache, [id]: tracks },
+        ...(state.activePlaylistId === id ? { playlistTracks: tracks, isLoading: false } : {}),
+      }));
     } catch (err) {
       console.error('Failed to fetch playlist tracks:', err);
     } finally {
-      set({ isLoading: false });
+      set(state => state.activePlaylistId === id ? { isLoading: false } : {});
     }
   },
 
   selectPlaylist: (id) => {
-    const { fetchPlaylistTracks } = get();
-    set({ activePlaylistId: id, isAddingSongs: false, playlistTracks: [] });
+    const { fetchPlaylistTracks, playlistTracksCache, playlists } = get();
+    const cached = playlistTracksCache[id];
+    const name = id === 'liked' ? 'Liked Songs'
+      : id === 'library' ? 'My Library'
+      : playlists.find(p => p.id === id)?.name ?? 'Playlist';
+    set({
+      activePlaylistId: id,
+      isAddingSongs: false,
+      playlistTracks: cached ?? [],
+      isLoading: cached === undefined,
+      currentPlaylistName: name,
+    });
     if (id !== 'home' && id !== 'recent') {
       fetchPlaylistTracks(id as string);
     }
@@ -137,7 +158,14 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
     // Optimistic update: immediately add track so UI reflects the change
     if (activePlaylistId === playlistId) {
-      set({ playlistTracks: [...playlistTracks, { ...track, addedAt: new Date().toISOString() }] });
+      const newTrack = { ...track, addedAt: new Date().toISOString() };
+      set(state => ({
+        playlistTracks: [...state.playlistTracks, newTrack],
+        playlistTracksCache: {
+          ...state.playlistTracksCache,
+          [playlistId]: [...(state.playlistTracksCache[playlistId] ?? []), newTrack],
+        },
+      }));
     }
 
     try {
@@ -156,7 +184,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       console.error('Failed to add to playlist:', err);
       // Rollback optimistic update on failure
       if (activePlaylistId === playlistId) {
-        set({ playlistTracks: playlistTracks });
+        set(state => ({
+          playlistTracks: playlistTracks,
+          playlistTracksCache: { ...state.playlistTracksCache, [playlistId]: playlistTracks },
+        }));
       }
     }
   },
@@ -202,6 +233,11 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         playlist_name: playlist?.name
       });
 
+      set(state => {
+        const { [id]: _, ...rest } = state.playlistTracksCache;
+        return { playlistTracksCache: rest };
+      });
+
       await refreshPlaylists();
       if (activePlaylistId === id) selectPlaylist('library');
     } catch (err) {
@@ -228,6 +264,11 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       posthog.capture('playlist_left', {
         playlist_id: id,
         playlist_name: playlist?.name
+      });
+
+      set(state => {
+        const { [id]: _, ...rest } = state.playlistTracksCache;
+        return { playlistTracksCache: rest };
       });
 
       await refreshPlaylists();
