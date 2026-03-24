@@ -2,7 +2,7 @@
 
 import { Clock, Play, Search, X } from "lucide-react"
 import Image from "next/image"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useAuth } from "components/Providers/AuthProvider"
 import { iTunesTrack } from "lib/itunes"
 import { usePlaybackStore } from "lib/store"
@@ -56,6 +56,7 @@ export function RecentlyPlayedView({
   const { currentTrack, isPlaying, setList } = usePlaybackStore()
   const [search, setSearch] = useState("")
   const [tracks, setTracks] = useState<RecentTrack[]>([])
+  const filterInputRef = useRef<HTMLInputElement>(null)
 
   const username = user?.user_metadata?.username || user?.email?.split("@")[0] || "You"
 
@@ -136,6 +137,7 @@ export function RecentlyPlayedView({
         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 sm:max-w-xs">
           <Search size={14} className="flex-shrink-0 text-aura-muted" />
           <input
+            ref={filterInputRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filter recently played..."
@@ -144,7 +146,11 @@ export function RecentlyPlayedView({
           {search.length > 0 && (
             <button
               type="button"
-              onClick={() => setSearch("")}
+              aria-label="Clear filter"
+              onClick={() => {
+                setSearch("")
+                filterInputRef.current?.focus()
+              }}
               className="flex-shrink-0 text-aura-muted rounded-full p-0.5 transition-all hover:bg-white/10 hover:text-white"
             >
               <X className="h-3.5 w-3.5" />

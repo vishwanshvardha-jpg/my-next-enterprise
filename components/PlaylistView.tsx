@@ -285,6 +285,7 @@ export function PlaylistView({
               {searchValue.length > 0 && (
                 <button
                   type="button"
+                  aria-label="Clear search"
                   onClick={() => {
                     setSearchValue("")
                     debouncedSearch.cancel()
