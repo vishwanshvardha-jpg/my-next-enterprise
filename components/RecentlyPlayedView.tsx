@@ -9,17 +9,15 @@ import { usePlaybackStore } from "lib/store"
 
 export type RecentTrack = iTunesTrack & { playedAt?: number }
 
-function getDateGroup(playedAt?: number): "today" | "yesterday" | "thisweek" | "earlier" {
-  if (!playedAt) return "earlier"
+function getDateGroup(playedAt?: number): "today" | "yesterday" | "thisweek" {
+  if (!playedAt) return "thisweek"
   const now = new Date()
   const played = new Date(playedAt)
   if (played.toDateString() === now.toDateString()) return "today"
   const yesterday = new Date(now)
   yesterday.setDate(now.getDate() - 1)
   if (played.toDateString() === yesterday.toDateString()) return "yesterday"
-  const diffMs = now.getTime() - played.getTime()
-  if (diffMs < 7 * 24 * 60 * 60 * 1000) return "thisweek"
-  return "earlier"
+  return "thisweek"
 }
 
 function formatTimeAgo(playedAt?: number): string {
@@ -79,8 +77,8 @@ export function RecentlyPlayedView({
       (t.collectionName || "").toLowerCase().includes(search.toLowerCase())
   )
 
-  const buckets: { today: RecentTrack[]; yesterday: RecentTrack[]; thisweek: RecentTrack[]; earlier: RecentTrack[] } = {
-    today: [], yesterday: [], thisweek: [], earlier: [],
+  const buckets: { today: RecentTrack[]; yesterday: RecentTrack[]; thisweek: RecentTrack[] } = {
+    today: [], yesterday: [], thisweek: [],
   }
   for (const t of filtered) {
     buckets[getDateGroup(t.playedAt)].push(t)
@@ -89,7 +87,6 @@ export function RecentlyPlayedView({
     { key: "today", label: "Today", items: buckets.today },
     { key: "yesterday", label: "Yesterday", items: buckets.yesterday },
     { key: "thisweek", label: "This Week", items: buckets.thisweek },
-    { key: "earlier", label: "Earlier", items: buckets.earlier },
   ].filter((g) => g.items.length > 0)
 
   const handlePlayAll = () => {

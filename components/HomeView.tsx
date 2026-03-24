@@ -1,9 +1,9 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 import { ChevronLeft, ChevronRight, Grid, Heart, List, Play, UserCheck, UserPlus } from "lucide-react"
 import Image from "next/image"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { TrackCard } from "components/TrackCard/TrackCard"
 import { TrackList } from "components/TrackList/TrackList"
 import { useFeatureFlag } from "hooks/useFeatureFlag"
@@ -47,15 +47,41 @@ export function HomeView({
   toggleFollow,
   isFollowing,
 }: HomeViewProps) {
-  const { activePlaylistId } = useLibraryStore()
+  const { activePlaylistId, selectPlaylist } = useLibraryStore()
   const { currentTrack, isPlaying, pause: handlePause } = usePlaybackStore()
   const { variant } = useFeatureFlag("default-view-mode")
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
+  const [showAllRecent, setShowAllRecent] = useState(false)
+  const [recentCols, setRecentCols] = useState(5)
+  const recentObserverRef = useRef<ResizeObserver | null>(null)
 
   useEffect(() => {
     if (variant === "test") setViewMode("grid")
   }, [variant])
+
+  useEffect(() => {
+    setShowAllRecent(false)
+  }, [viewMode])
+
+  // Callback ref fires when the section mounts (after recentlyPlayed loads from localStorage),
+  // ensuring column count is measured from the real DOM width, not a stale default.
+  const recentSectionRef = useCallback((el: HTMLDivElement | null) => {
+    if (recentObserverRef.current) {
+      recentObserverRef.current.disconnect()
+      recentObserverRef.current = null
+    }
+    if (!el) return
+    const measure = () => {
+      // minmax(140px, 1fr) with gap-5 (20px): cols = floor((width + 20) / 160)
+      const cols = Math.max(1, Math.floor((el.offsetWidth + 20) / 160))
+      setRecentCols(cols)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    recentObserverRef.current = ro
+  }, [])
 
   const albumsScrollRef = useRef<HTMLDivElement>(null)
   const artistsScrollRef = useRef<HTMLDivElement>(null)
@@ -375,29 +401,95 @@ export function HomeView({
 
         {/* ─── Recently Played ─── */}
         {recentlyPlayed.length > 0 && searchQuery === "Top Hits" && !isSearching && (
-          <section className="space-y-5">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="font-display text-xl font-bold text-white">Recently Played</h2>
-              <button className="text-[11px] font-semibold text-aura-muted tracking-wider transition-colors hover:text-aura-primary">
-                View All
-              </button>
-            </div>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-5">
-              {recentlyPlayed.map((track, i) => (
-                <TrackCard
-                  key={`recent-${track.trackId}-${i}`}
-                  track={track}
-                  isCurrentTrack={currentTrack?.trackId === track.trackId}
-                  isPlaying={currentTrack?.trackId === track.trackId && isPlaying}
-                  onPlay={(t) => onPlayFromCard(t, "recent")}
-                  onPause={handlePause}
-                  isLiked={likedSongIds.includes(track.trackId)}
-                  onToggleLike={handleToggleLike}
-                  onAddToPlaylist={handleAddToPlaylist}
-                  playlists={playlists}
-                />
-              ))}
-            </div>
+          <section ref={recentSectionRef} className="space-y-5">
+            {(() => {
+              const gridLimit = recentCols * 2
+              const listLimit = 10
+              const limit = viewMode === "grid" ? gridLimit : listLimit
+              const hasMore = recentlyPlayed.length > limit
+              const visibleTracks = showAllRecent ? recentlyPlayed : recentlyPlayed.slice(0, limit)
+              return (
+                <>
+                  <div className="flex items-center justify-between px-1">
+                    <h2 className="font-display text-xl font-bold text-white">Recently Played</h2>
+                    <AnimatePresence mode="wait" initial={false}>
+                      {(hasMore || showAllRecent) && (
+                        <motion.button
+                          key={showAllRecent ? "show-less" : "view-all"}
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.15 }}
+                          onClick={() => setShowAllRecent((v) => !v)}
+                          className="text-[11px] font-semibold text-aura-muted tracking-wider transition-colors hover:text-aura-primary"
+                        >
+                          {showAllRecent ? "Show Less" : "View All"}
+                        </motion.button>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <AnimatePresence mode="wait" initial={false}>
+                    {viewMode === "grid" ? (
+                      <motion.div
+                        key="recent-grid"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-5"
+                      >
+                        <AnimatePresence initial={false}>
+                          {visibleTracks.map((track, i) => (
+                            <motion.div
+                              key={track.trackId}
+                              layout
+                              initial={{ opacity: 0, scale: 0.92 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.92 }}
+                              transition={{ duration: 0.18, delay: Math.min(i * 0.025, 0.25) }}
+                            >
+                              <TrackCard
+                                track={track}
+                                isCurrentTrack={currentTrack?.trackId === track.trackId}
+                                isPlaying={currentTrack?.trackId === track.trackId && isPlaying}
+                                onPlay={(t) => onPlayFromCard(t, "recent")}
+                                onPause={handlePause}
+                                isLiked={likedSongIds.includes(track.trackId)}
+                                onToggleLike={handleToggleLike}
+                                onAddToPlaylist={handleAddToPlaylist}
+                                playlists={playlists}
+                              />
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="recent-list"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <TrackList
+                          tracks={visibleTracks}
+                          viewMode="list"
+                          currentTrackId={currentTrack?.trackId ?? null}
+                          isPlaying={isPlaying}
+                          onPlay={(t) => onPlayFromCard(t, "recent")}
+                          onPause={handlePause}
+                          isLoading={false}
+                          likedSongIds={likedSongIds}
+                          onToggleLike={handleToggleLike}
+                          onAddToPlaylist={handleAddToPlaylist}
+                          playlists={playlists}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
+              )
+            })()}
           </section>
         )}
 
