@@ -122,12 +122,6 @@ export function TrackCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  posthog.capture("track_added_to_playlist", {
-                    track_id: track.trackId,
-                    track_name: track.trackName,
-                    artist_name: track.artistName,
-                    playlist_id: activePlaylistId,
-                  })
                   onAddToPlaylist(track, activePlaylistId)
                 }}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm opacity-0 transition-all duration-300 group-hover:opacity-100 hover:bg-black/60 hover:scale-110"
@@ -156,13 +150,6 @@ export function TrackCard({
                       key={playlist.id}
                       className="flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-white transition-colors outline-none hover:bg-white/10"
                       onSelect={() => {
-                        posthog.capture("track_added_to_playlist", {
-                          track_id: track.trackId,
-                          track_name: track.trackName,
-                          artist_name: track.artistName,
-                          playlist_id: playlist.id,
-                          playlist_name: playlist.name,
-                        })
                         onAddToPlaylist(track, playlist.id)
                       }}
                     >

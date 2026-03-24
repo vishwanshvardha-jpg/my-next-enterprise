@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { debounce } from "lodash"
-import { Grid, Heart, ImagePlus, List, LogOut, Music, Play, Plus, Search, User as UserIcon, UserPlus } from "lucide-react"
+import { Grid, Heart, ImagePlus, List, LogOut, Music, Play, Plus, Search, User as UserIcon, UserPlus, X } from "lucide-react"
 import Image from "next/image"
 import { useMemo, useRef, useState } from "react"
 import { CollaboratorsModal } from "components/Playlist/CollaboratorsModal"
@@ -43,7 +43,9 @@ export function PlaylistView({
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
   const [isCollaboratorsOpen, setIsCollaboratorsOpen] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [searchValue, setSearchValue] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
   const activePlaylist = playlists.find((p) => p.id === activePlaylistId)
@@ -270,11 +272,30 @@ export function PlaylistView({
             <div className="relative max-w-xl">
               <Search className="text-aura-muted absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
               <input
+                ref={searchInputRef}
                 autoFocus
+                value={searchValue}
                 placeholder="Find tracks to add..."
-                onChange={(e) => debouncedSearch(e.target.value)}
-                className="h-11 w-full rounded-xl border border-white/[0.06] bg-white/[0.04] py-3 pr-4 pl-11 text-[13px] font-medium text-white transition-all focus:bg-white/[0.07] focus:border-aura-primary/30 focus:outline-none focus:ring-1 focus:ring-aura-primary/20 placeholder-aura-muted"
+                onChange={(e) => {
+                  setSearchValue(e.target.value)
+                  debouncedSearch(e.target.value)
+                }}
+                className="h-11 w-full rounded-xl border border-white/[0.06] bg-white/[0.04] py-3 pr-10 pl-11 text-[13px] font-medium text-white transition-all focus:bg-white/[0.07] focus:border-aura-primary/30 focus:outline-none focus:ring-1 focus:ring-aura-primary/20 placeholder-aura-muted"
               />
+              {searchValue.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchValue("")
+                    debouncedSearch.cancel()
+                    handlePlaylistSearch("")
+                    searchInputRef.current?.focus()
+                  }}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-aura-muted rounded-full p-0.5 transition-all hover:bg-white/10 hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
             {playlistSearchTracks.length > 0 && (
               <div className="space-y-4">
