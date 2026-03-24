@@ -1,8 +1,8 @@
 "use client"
 
-import { Clock, Play, Search } from "lucide-react"
+import { Clock, Play, Search, X } from "lucide-react"
 import Image from "next/image"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useAuth } from "components/Providers/AuthProvider"
 import { iTunesTrack } from "lib/itunes"
 import { usePlaybackStore } from "lib/store"
@@ -56,6 +56,7 @@ export function RecentlyPlayedView({
   const { currentTrack, isPlaying, setList } = usePlaybackStore()
   const [search, setSearch] = useState("")
   const [tracks, setTracks] = useState<RecentTrack[]>([])
+  const filterInputRef = useRef<HTMLInputElement>(null)
 
   const username = user?.user_metadata?.username || user?.email?.split("@")[0] || "You"
 
@@ -136,11 +137,25 @@ export function RecentlyPlayedView({
         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 sm:max-w-xs">
           <Search size={14} className="flex-shrink-0 text-aura-muted" />
           <input
+            ref={filterInputRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search history..."
+            placeholder="Filter recently played..."
             className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-aura-muted outline-none"
           />
+          {search.length > 0 && (
+            <button
+              type="button"
+              aria-label="Clear filter"
+              onClick={() => {
+                setSearch("")
+                filterInputRef.current?.focus()
+              }}
+              className="flex-shrink-0 text-aura-muted rounded-full p-0.5 transition-all hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -161,6 +176,14 @@ export function RecentlyPlayedView({
             <span className="text-[11px] font-bold tracking-[0.12em] text-aura-muted text-right">PLAYED</span>
             <span />
           </div>
+
+          {filtered.length === 0 && search.length > 0 ? (
+            <div className="flex flex-col items-center py-24 text-center">
+              <Search className="mb-4 h-7 w-7 text-aura-muted/30" />
+              <p className="mb-1 text-lg font-semibold text-white/60">No matching tracks</p>
+              <p className="text-sm text-aura-muted">Try a different search term</p>
+            </div>
+          ) : null}
 
           {groups.map(({ key, label, items }, groupIndex) => {
             const offset = groups.slice(0, groupIndex).reduce((sum, g) => sum + g.items.length, 0)
