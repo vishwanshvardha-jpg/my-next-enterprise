@@ -288,7 +288,7 @@ export function PlaylistView({
                   isPlaying={isPlaying}
                   onPlay={(t) => onPlayFromCard(t, "search")}
                   onPause={handlePause}
-                  isLoading={isLoading}
+                  isLoading={false}
                   likedSongIds={likedSongIds}
                   onToggleLike={handleToggleLike}
                   onAddToPlaylist={handleAddToPlaylist}

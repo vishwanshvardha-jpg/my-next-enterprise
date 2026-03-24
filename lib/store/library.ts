@@ -108,7 +108,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       activePlaylistId: id,
       isAddingSongs: false,
       playlistTracks: cached ?? [],
-      isLoading: !cached?.length,
+      isLoading: cached === undefined,
       currentPlaylistName: name,
     });
     if (id !== 'home' && id !== 'recent') {
@@ -264,6 +264,11 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       posthog.capture('playlist_left', {
         playlist_id: id,
         playlist_name: playlist?.name
+      });
+
+      set(state => {
+        const { [id]: _, ...rest } = state.playlistTracksCache;
+        return { playlistTracksCache: rest };
       });
 
       await refreshPlaylists();
