@@ -49,6 +49,11 @@ export function PlaylistView({
   const activePlaylist = playlists.find((p) => p.id === activePlaylistId)
   const isOwner = activePlaylist?.user_id === user?.id
 
+  const playlistTrackIds = useMemo(
+    () => new Set(playlistTracks.map((t) => Number(t.trackId))),
+    [playlistTracks]
+  )
+
   const handleCoverImageClick = () => {
     if (!isOwner) return
     fileInputRef.current?.click()
@@ -287,6 +292,8 @@ export function PlaylistView({
                   onToggleLike={handleToggleLike}
                   onAddToPlaylist={handleAddToPlaylist}
                   playlists={playlists}
+                  activePlaylistId={typeof activePlaylistId === "string" && activePlaylistId !== "liked" && activePlaylistId !== "library" && activePlaylistId !== "home" ? activePlaylistId : undefined}
+                  playlistTrackIds={playlistTrackIds}
                   viewMode={viewMode}
                 />
                 <div className="my-6 h-px bg-white/[0.04]" />
@@ -308,8 +315,6 @@ export function PlaylistView({
             isLoading={false}
             likedSongIds={likedSongIds}
             onToggleLike={handleToggleLike}
-            onAddToPlaylist={handleAddToPlaylist}
-            playlists={playlists}
             viewMode={viewMode}
           />
         </div>

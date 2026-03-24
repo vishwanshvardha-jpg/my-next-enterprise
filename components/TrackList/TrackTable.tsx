@@ -2,7 +2,7 @@
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
 import { formatDistanceToNow } from "date-fns"
-import { Clock, Heart, ListMusic, Play, Plus, Volume2 } from "lucide-react"
+import { Check, Clock, Heart, ListMusic, Play, Plus, Volume2 } from "lucide-react"
 import Image from "next/image"
 import { iTunesTrack } from "lib/itunes"
 import { Playlist } from "lib/types"
@@ -17,6 +17,8 @@ interface TrackTableProps {
   onToggleLike?: (track: iTunesTrack) => void
   onAddToPlaylist?: (track: iTunesTrack, playlistId: string) => void
   playlists?: Playlist[]
+  activePlaylistId?: string
+  playlistTrackIds?: Set<number>
 }
 
 export function TrackTable({
@@ -29,6 +31,8 @@ export function TrackTable({
   onToggleLike,
   onAddToPlaylist,
   playlists = [],
+  activePlaylistId,
+  playlistTrackIds,
 }: TrackTableProps) {
   return (
     <div className="w-full">
@@ -133,7 +137,24 @@ export function TrackTable({
                       <Heart size={14} fill={likedSongIds.includes(track.trackId) ? "currentColor" : "none"} />
                     </button>
 
-                    {onAddToPlaylist && playlists.length > 0 && (
+                    {onAddToPlaylist && (activePlaylistId || playlists.length > 0) && (
+                      activePlaylistId ? (
+                        playlistTrackIds?.has(Number(track.trackId)) ? (
+                          <span className="text-aura-primary cursor-default">
+                            <Check size={14} />
+                          </span>
+                        ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onAddToPlaylist(track, activePlaylistId)
+                          }}
+                          className="text-aura-muted opacity-0 transition-all group-hover:opacity-100 hover:text-white hover:scale-110"
+                        >
+                          <Plus size={14} />
+                        </button>
+                        )
+                      ) : (
                       <DropdownMenu.Root>
                         <DropdownMenu.Trigger asChild>
                           <button
@@ -162,6 +183,7 @@ export function TrackTable({
                           </DropdownMenu.Content>
                         </DropdownMenu.Portal>
                       </DropdownMenu.Root>
+                      )
                     )}
                   </div>
                 </td>

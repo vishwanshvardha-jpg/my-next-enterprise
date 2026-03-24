@@ -21,6 +21,8 @@ interface TrackListProps {
   onToggleLike?: (track: iTunesTrack) => void
   onAddToPlaylist?: (track: iTunesTrack, playlistId: string) => void
   playlists?: Playlist[]
+  activePlaylistId?: string
+  playlistTrackIds?: Set<number>
 }
 
 export function TrackList({
@@ -35,6 +37,8 @@ export function TrackList({
   onToggleLike,
   onAddToPlaylist,
   playlists = [],
+  activePlaylistId,
+  playlistTrackIds,
 }: TrackListProps) {
   if (isLoading) {
     return (
@@ -73,6 +77,8 @@ export function TrackList({
         onToggleLike={onToggleLike}
         onAddToPlaylist={onAddToPlaylist}
         playlists={playlists}
+        activePlaylistId={activePlaylistId}
+        playlistTrackIds={playlistTrackIds}
       />
     )
   }
@@ -96,6 +102,8 @@ export function TrackList({
             onToggleLike={onToggleLike}
             onAddToPlaylist={onAddToPlaylist}
             playlists={playlists}
+            activePlaylistId={activePlaylistId}
+            playlistTrackIds={playlistTrackIds}
           />
         )
       })}
