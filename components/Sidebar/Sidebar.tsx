@@ -87,8 +87,8 @@ export function Sidebar() {
 
   const navItems = [
     { id: "playlist", label: "My Playlists", Icon: LayoutGrid, count: undefined },
-    { id: "recent", label: "Recent", Icon: Clock, count: undefined },
     { id: "liked", label: "Liked Songs", Icon: Heart, count: likedSongs.length > 0 ? likedSongs.length : undefined },
+    { id: "recent", label: "Recently Played", Icon: Clock, count: undefined },
   ]
 
   return (
