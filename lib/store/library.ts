@@ -133,10 +133,16 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   addToPlaylist: async (track, playlistId) => {
-    const { activePlaylistId, fetchPlaylistTracks, playlists } = get();
+    const { activePlaylistId, fetchPlaylistTracks, playlists, playlistTracks } = get();
+
+    // Optimistic update: immediately add track so UI reflects the change
+    if (activePlaylistId === playlistId) {
+      set({ playlistTracks: [...playlistTracks, { ...track, addedAt: new Date().toISOString() }] });
+    }
+
     try {
       await addSongAction(playlistId, track);
-      
+
       const playlist = playlists.find(p => p.id === playlistId);
       posthog.capture('track_added_to_playlist', {
         track_id: track.trackId,
@@ -148,6 +154,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (activePlaylistId === playlistId) fetchPlaylistTracks(playlistId);
     } catch (err) {
       console.error('Failed to add to playlist:', err);
+      // Rollback optimistic update on failure
+      if (activePlaylistId === playlistId) {
+        set({ playlistTracks: playlistTracks });
+      }
     }
   },
 

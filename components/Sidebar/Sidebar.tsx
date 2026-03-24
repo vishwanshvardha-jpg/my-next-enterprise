@@ -34,7 +34,6 @@ export function Sidebar() {
     likedSongs,
     activePlaylistId: activeId,
     selectPlaylist,
-    fetchInitialData,
     deletePlaylist,
     leavePlaylist,
     refreshPlaylists,
@@ -43,10 +42,6 @@ export function Sidebar() {
   const { isSidebarCollapsed, toggleSidebar, setMobileSidebarOpen } = useUIStore()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
-
-  useEffect(() => {
-    fetchInitialData(user)
-  }, [user, fetchInitialData])
 
   const handleCreateClick = () => {
     if (!user) { setIsAuthOpen(true); return }

@@ -1,7 +1,7 @@
 "use client"
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
-import { Heart, ListMusic, Pause, Play, Plus } from "lucide-react"
+import { Check, Heart, ListMusic, Pause, Play, Plus } from "lucide-react"
 import Image from "next/image"
 import posthog from "posthog-js"
 import { useFeatureFlag } from "hooks/useFeatureFlag"
@@ -18,6 +18,8 @@ interface TrackCardProps {
   onToggleLike?: (track: iTunesTrack) => void
   onAddToPlaylist?: (track: iTunesTrack, playlistId: string) => void
   playlists?: Playlist[]
+  activePlaylistId?: string
+  playlistTrackIds?: Set<number>
 }
 
 export function TrackCard({
@@ -30,6 +32,8 @@ export function TrackCard({
   onToggleLike,
   onAddToPlaylist,
   playlists = [],
+  activePlaylistId,
+  playlistTrackIds,
 }: TrackCardProps) {
   const { variant } = useFeatureFlag("like-button-visibility")
   const alwaysShowLike = variant === "test"
@@ -106,7 +110,32 @@ export function TrackCard({
 
         {/* Action Badges */}
         <div className="absolute top-2.5 right-2.5 flex flex-col gap-1.5">
-          {onAddToPlaylist && playlists.length > 0 && (
+          {onAddToPlaylist && (activePlaylistId || playlists.length > 0) && (
+            activePlaylistId ? (
+              playlistTrackIds?.has(Number(track.trackId)) ? (
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-aura-primary backdrop-blur-sm opacity-0 transition-all duration-300 group-hover:opacity-100 cursor-default"
+                >
+                  <Check size={14} />
+                </div>
+              ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  posthog.capture("track_added_to_playlist", {
+                    track_id: track.trackId,
+                    track_name: track.trackName,
+                    artist_name: track.artistName,
+                    playlist_id: activePlaylistId,
+                  })
+                  onAddToPlaylist(track, activePlaylistId)
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm opacity-0 transition-all duration-300 group-hover:opacity-100 hover:bg-black/60 hover:scale-110"
+              >
+                <Plus size={14} />
+              </button>
+              )
+            ) : (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
                 <button
@@ -144,6 +173,7 @@ export function TrackCard({
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
+            )
           )}
         </div>
       </div>

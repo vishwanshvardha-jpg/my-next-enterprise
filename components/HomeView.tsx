@@ -6,11 +6,11 @@ import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import { TrackCard } from "components/TrackCard/TrackCard"
 import { TrackList } from "components/TrackList/TrackList"
-import { useFollowedArtists } from "hooks/useFollowedArtists"
+import { useFeatureFlag } from "hooks/useFeatureFlag"
+import { FollowedArtist } from "hooks/useFollowedArtists"
 import { iTunesTrack } from "lib/itunes"
 import { useLibraryStore, usePlaybackStore } from "lib/store"
 import { Playlist } from "lib/types"
-import { useFeatureFlag } from "hooks/useFeatureFlag"
 
 interface HomeViewProps {
   tracks: (iTunesTrack & { addedAt?: string })[]
@@ -25,6 +25,9 @@ interface HomeViewProps {
   handleAddToPlaylist: (track: iTunesTrack, playlistId: string) => void
   likedSongIds: number[]
   playlists: Playlist[]
+  followedArtists: FollowedArtist[]
+  toggleFollow: (name: string, artwork: string) => void
+  isFollowing: (name: string) => boolean
 }
 
 export function HomeView({
@@ -40,11 +43,13 @@ export function HomeView({
   handleAddToPlaylist,
   likedSongIds,
   playlists,
+  followedArtists,
+  toggleFollow,
+  isFollowing,
 }: HomeViewProps) {
   const { activePlaylistId } = useLibraryStore()
   const { currentTrack, isPlaying, pause: handlePause } = usePlaybackStore()
   const { variant } = useFeatureFlag("default-view-mode")
-  const { followedArtists, toggleFollow, isFollowing } = useFollowedArtists()
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
 
