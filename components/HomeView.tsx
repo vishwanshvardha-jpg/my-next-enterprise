@@ -47,7 +47,7 @@ export function HomeView({
   toggleFollow,
   isFollowing,
 }: HomeViewProps) {
-  const { activePlaylistId, selectPlaylist } = useLibraryStore()
+  const { activePlaylistId } = useLibraryStore()
   const { currentTrack, isPlaying, pause: handlePause } = usePlaybackStore()
   const { variant } = useFeatureFlag("default-view-mode")
 
@@ -63,6 +63,17 @@ export function HomeView({
   useEffect(() => {
     setShowAllRecent(false)
   }, [viewMode])
+
+  // Ensure the ResizeObserver is always disconnected when the component unmounts,
+  // in case React does not invoke the callback ref with null in all scenarios.
+  useEffect(() => {
+    return () => {
+      if (recentObserverRef.current) {
+        recentObserverRef.current.disconnect()
+        recentObserverRef.current = null
+      }
+    }
+  }, [])
 
   // Callback ref fires when the section mounts (after recentlyPlayed loads from localStorage),
   // ensuring column count is measured from the real DOM width, not a stale default.
