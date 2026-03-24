@@ -2,7 +2,7 @@
 
 import { apiFetch } from "lib/api-client"
 import { iTunesTrack } from "lib/itunes"
-import { Collaborator, PendingInvite, Playlist } from "lib/types"
+import { Collaborator, PendingInvite, Playlist, PlaylistSong } from "lib/types"
 
 export async function getPlaylists(): Promise<Playlist[]> {
   try {
@@ -38,10 +38,14 @@ export async function deletePlaylist(id: string): Promise<void> {
   }
 }
 
-export async function getPlaylistSongs(playlistId: string): Promise<iTunesTrack[]> {
+export async function getPlaylistSongs(playlistId: string): Promise<PlaylistSong[]> {
   try {
     const data = await apiFetch(`/playlists/${playlistId}/songs`)
-    return data as iTunesTrack[]
+    return (data as { track_id: number; position: number; added_at: string }[]).map(row => ({
+      trackId: row.track_id,
+      position: row.position,
+      addedAt: row.added_at,
+    }))
   } catch (err) {
     console.error("Error fetching playlist songs:", err)
     return []

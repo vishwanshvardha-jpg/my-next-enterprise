@@ -1,17 +1,16 @@
 "use client"
 
 import { apiFetch } from "lib/api-client"
-import { iTunesTrack } from "lib/itunes"
 import { LikedSong } from "lib/types"
 
 export async function getLikedSongs(): Promise<LikedSong[]> {
   try {
     const data = await apiFetch("/library/liked")
-    return (data as { track_id: number; created_at: string; track_data: iTunesTrack }[]).map(
+    return (data as { track_id: number; created_at: string }[]).map(
       (item): LikedSong => ({
         trackId: item.track_id,
         createdAt: item.created_at,
-        trackData: item.track_data,
+        trackData: null,
       })
     )
   } catch (err) {
