@@ -47,7 +47,10 @@ export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading, onReq
       selectPlaylist("home")
       onHome?.()
     } else if (tabId === "library") {
-      if (!user) { onRequestSignUp?.(); return }
+      if (!user) {
+        if (onRequestSignUp) { onRequestSignUp(); return }
+        setIsAuthOpen(true); return
+      }
       selectPlaylist("library")
     }
   }

@@ -8,17 +8,18 @@ import { useGuestStore } from "lib/store/guest"
 interface TourStep {
   step: number
   target: string
+  mobileTarget?: string   // fallback when primary element is off-screen / zero-size
   side: "top" | "bottom" | "left" | "right"
   title: string
   body: string
 }
 
 const TOUR_STEPS: TourStep[] = [
-  { step: 1, target: "search",            side: "bottom", title: "Discover music",              body: "Search millions of tracks and find something you love instantly." },
-  { step: 2, target: "discover-tab",      side: "bottom", title: "Explore the Discover page",   body: "Browse curated picks, trending songs, and featured artists." },
-  { step: 3, target: "library-tab",       side: "bottom", title: "Build your library",          body: "Sign up to save liked songs and organise everything in one place." },
-  { step: 4, target: "playlists-section", side: "right",  title: "Playlists & shared ones",     body: "Create your own playlists or collaborate on shared ones with friends." },
-  { step: 5, target: "notification-bell", side: "bottom", title: "Invites & shares",            body: "Get notified when someone shares a playlist or invites you to collaborate." },
+  { step: 1, target: "search",            mobileTarget: "mobile-search",   side: "bottom", title: "Discover music",              body: "Search millions of tracks and find something you love instantly." },
+  { step: 2, target: "discover-tab",                                        side: "bottom", title: "Explore the Discover page",   body: "Browse curated picks, trending songs, and featured artists." },
+  { step: 3, target: "library-tab",                                         side: "bottom", title: "Build your library",          body: "Sign up to save liked songs and organise everything in one place." },
+  { step: 4, target: "playlists-section",                                   side: "right",  title: "Playlists & shared ones",     body: "Create your own playlists or collaborate on shared ones with friends." },
+  { step: 5, target: "notification-bell", mobileTarget: "mobile-search",   side: "bottom", title: "Invites & shares",            body: "Get notified when someone shares a playlist or invites you to collaborate." },
 ]
 
 const PAD = 12   // spotlight padding around the target
@@ -100,11 +101,17 @@ export function CoachmarkTour({ onRequestSignUp }: CoachmarkTourProps) {
 
     if (!currentConfig) { setSpotRect(null); return }
 
-    const el = document.querySelector<HTMLElement>(`[data-coachmark="${currentConfig.target}"]`)
-    if (!el) { setSpotRect(null); return }
+    // Try primary target; fall back to mobileTarget when element is hidden / zero-size
+    const tryTarget = (key: string) => {
+      const el = document.querySelector<HTMLElement>(`[data-coachmark="${key}"]`)
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      if (r.width === 0 && r.height === 0) return null
+      return r
+    }
 
-    const r = el.getBoundingClientRect()
-    if (r.width === 0 && r.height === 0) { setSpotRect(null); return }
+    const r = tryTarget(currentConfig.target) ?? (currentConfig.mobileTarget ? tryTarget(currentConfig.mobileTarget) : null)
+    if (!r) { setSpotRect(null); return }
 
     setSpotRect({ x: r.left - PAD, y: r.top - PAD, w: r.width + PAD * 2, h: r.height + PAD * 2 })
   }, [currentConfig])
@@ -172,26 +179,23 @@ export function CoachmarkTour({ onRequestSignUp }: CoachmarkTourProps) {
 
   return (
     <>
-      {/* Blocking layer — prevents clicks outside spotlight */}
-      <div
-        className="fixed inset-0 z-[209]"
-        onClick={(e) => e.stopPropagation()}
-        style={{ pointerEvents: spotRect ? "auto" : "none" }}
-      >
-        {/* Cut-out: allow clicks through the spotlight hole */}
-        {spotRect && (
-          <div
-            className="absolute"
-            style={{
-              left: spotRect.x,
-              top: spotRect.y,
-              width: spotRect.w,
-              height: spotRect.h,
-              pointerEvents: "none",
-            }}
-          />
-        )}
-      </div>
+      {/* Blocking overlay — four panels surrounding the spotlight so clicks
+          on the spotlight area genuinely pass through (no full-screen div). */}
+      {spotRect ? (
+        <>
+          {/* top panel */}
+          <div className="fixed z-[209] left-0 top-0 w-full" style={{ height: spotRect.y }} onClick={(e) => e.stopPropagation()} />
+          {/* bottom panel */}
+          <div className="fixed z-[209] left-0 w-full" style={{ top: spotRect.y + spotRect.h, bottom: 0 }} onClick={(e) => e.stopPropagation()} />
+          {/* left panel */}
+          <div className="fixed z-[209] left-0" style={{ top: spotRect.y, width: spotRect.x, height: spotRect.h }} onClick={(e) => e.stopPropagation()} />
+          {/* right panel */}
+          <div className="fixed z-[209]" style={{ top: spotRect.y, left: spotRect.x + spotRect.w, right: 0, height: spotRect.h }} onClick={(e) => e.stopPropagation()} />
+        </>
+      ) : (
+        /* No visible target — block everything */
+        <div className="fixed inset-0 z-[209]" onClick={(e) => e.stopPropagation()} />
+      )}
 
       {/* SVG dim overlay with spotlight hole */}
       <svg

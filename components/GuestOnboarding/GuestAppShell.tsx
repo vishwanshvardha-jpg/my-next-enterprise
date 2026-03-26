@@ -50,7 +50,8 @@ export function GuestAppShell({ token }: GuestAppShellProps) {
     setSearchQuery(query)
     selectPlaylist("home")
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/v1/music/search?q=${encodeURIComponent(query)}`)
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000"
+      const res = await fetch(`${apiBase}/v1/music/search?q=${encodeURIComponent(query)}`)
       if (!res.ok) throw new Error("Search failed")
       const data = (await res.json()) as { tracks: iTunesTrack[] }
       setSearchTracks(data.tracks)
