@@ -3,6 +3,7 @@
 import { apiFetch } from "lib/api-client"
 import { iTunesTrack } from "lib/itunes"
 import { Collaborator, PendingInvite, Playlist, PlaylistSong } from "lib/types"
+import { lookupTracks } from "lib/actions/tracks"
 
 export async function getPlaylists(): Promise<Playlist[]> {
   try {
@@ -139,5 +140,37 @@ export async function respondToInvite(playlistId: string, status: "accepted" | "
   } catch (err) {
     console.error("Error responding to invite:", err)
     throw err
+  }
+}
+
+export async function generateShareToken(playlistId: string): Promise<string> {
+  const data = await apiFetch(`/playlists/${playlistId}/share-token`, { method: "POST" })
+  return (data as { token: string }).token
+}
+
+export async function sendShareEmail(playlistId: string, email: string): Promise<void> {
+  await apiFetch(`/playlists/${playlistId}/share-email`, {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  })
+}
+
+export async function getPublicSharedPlaylist(token: string): Promise<{ playlist: Playlist; tracks: iTunesTrack[] } | null> {
+  const BACKEND_URL = `${process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000"}/v1`
+  try {
+    const res = await fetch(`${BACKEND_URL}/playlists/share/${token}`)
+    if (!res.ok) return null
+    const data = await res.json() as {
+      playlist: Playlist
+      tracks: { track_id: number; position: number; added_at: string }[]
+    }
+    if (!data.tracks.length) return { playlist: data.playlist, tracks: [] }
+    const trackMap = await lookupTracks(data.tracks.map((s) => s.track_id))
+    const tracks = data.tracks
+      .filter((s) => trackMap.has(s.track_id))
+      .map((s) => ({ ...trackMap.get(s.track_id)!, addedAt: s.added_at }))
+    return { playlist: data.playlist, tracks }
+  } catch {
+    return null
   }
 }

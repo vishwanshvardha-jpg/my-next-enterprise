@@ -1,8 +1,8 @@
 import * as Dialog from "@radix-ui/react-dialog"
-import { Loader2, UserMinus, UserPlus, X } from "lucide-react"
+import { Check, Copy, Link, Loader2, Mail, Send, UserMinus, UserPlus, X } from "lucide-react"
 import { useEffect, useState } from "react"
 
-import { addCollaborator, getCollaborators, removeCollaborator } from "lib/actions/playlists"
+import { addCollaborator, generateShareToken, getCollaborators, removeCollaborator, sendShareEmail } from "lib/actions/playlists"
 import { Collaborator } from "lib/types"
 
 interface CollaboratorsModalProps {
@@ -19,6 +19,15 @@ export function CollaboratorsModal({ isOpen, onClose, playlistId, playlistName }
   const [isInviting, setIsInviting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Share link state
+  const [shareToken, setShareToken] = useState<string | null>(null)
+  const [isCopying, setIsCopying] = useState(false)
+  const [copySuccess, setCopySuccess] = useState(false)
+  const [shareEmailInput, setShareEmailInput] = useState("")
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+
   const fetchCollaborators = async () => {
     setIsLoading(true)
     const data = await getCollaborators(playlistId)
@@ -31,8 +40,53 @@ export function CollaboratorsModal({ isOpen, onClose, playlistId, playlistName }
       fetchCollaborators()
       setEmail("")
       setError(null)
+      setShareToken(null)
+      setShareEmailInput("")
+      setEmailSent(false)
+      setShareError(null)
     }
   }, [isOpen, playlistId])
+
+  const getOrCreateShareToken = async (): Promise<string> => {
+    if (shareToken) return shareToken
+    const token = await generateShareToken(playlistId)
+    setShareToken(token)
+    return token
+  }
+
+  const handleCopyLink = async () => {
+    setIsCopying(true)
+    setShareError(null)
+    try {
+      const token = await getOrCreateShareToken()
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const url = `${baseUrl}/share/${token}`
+      await navigator.clipboard.writeText(url)
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
+    } catch {
+      setShareError("Failed to copy link")
+    } finally {
+      setIsCopying(false)
+    }
+  }
+
+  const handleSendShareEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!shareEmailInput.trim()) return
+    setIsSendingEmail(true)
+    setShareError(null)
+    try {
+      await sendShareEmail(playlistId, shareEmailInput.trim())
+      setShareEmailInput("")
+      setEmailSent(true)
+      setTimeout(() => setEmailSent(false), 3000)
+    } catch {
+      setShareError("Failed to send email")
+    } finally {
+      setIsSendingEmail(false)
+    }
+  }
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,24 +131,87 @@ export function CollaboratorsModal({ isOpen, onClose, playlistId, playlistName }
           </div>
 
           <div className="space-y-6 p-6">
-            {/* Invite form */}
-            <form onSubmit={handleInvite} className="flex gap-3">
-              <input
-                type="email"
-                placeholder="Invite by email..."
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="focus:border-aura-primary flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white transition-all focus:outline-none placeholder:text-white/30"
-              />
+            {/* Share link section */}
+            <div className="space-y-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <div className="flex items-center gap-2">
+                <Link size={13} className="text-aura-primary" />
+                <p className="text-[11px] font-black tracking-[0.15em] text-white/70 uppercase">Share with anyone</p>
+              </div>
+
               <button
-                type="submit"
-                disabled={isInviting || !email.trim()}
-                className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-black tracking-widest text-black uppercase shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                onClick={handleCopyLink}
+                disabled={isCopying}
+                className="flex w-full items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-left transition-colors hover:bg-white/[0.08] disabled:opacity-50"
               >
-                {isInviting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
-                Invite
+                <span className="text-aura-muted truncate text-xs">
+                  {shareToken
+                    ? `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/share/${shareToken}`
+                    : `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/share/...`}
+                </span>
+                <span className="text-aura-primary flex shrink-0 items-center gap-1.5 text-[11px] font-bold">
+                  {isCopying ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : copySuccess ? (
+                    <><Check size={12} /> Copied</>
+                  ) : (
+                    <><Copy size={12} /> Copy link</>
+                  )}
+                </span>
               </button>
-            </form>
+
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-white/[0.06]" />
+                <span className="text-aura-muted text-[10px]">or send via email</span>
+                <div className="h-px flex-1 bg-white/[0.06]" />
+              </div>
+
+              <form onSubmit={handleSendShareEmail} className="flex gap-2">
+                <input
+                  type="email"
+                  placeholder="Email address..."
+                  value={shareEmailInput}
+                  onChange={(e) => setShareEmailInput(e.target.value)}
+                  className="focus:border-aura-primary flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white transition-all focus:outline-none placeholder:text-white/30"
+                />
+                <button
+                  type="submit"
+                  disabled={isSendingEmail || !shareEmailInput.trim()}
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-white/10 disabled:opacity-50"
+                >
+                  {isSendingEmail ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : emailSent ? (
+                    <><Check size={12} className="text-green-400" /> Sent</>
+                  ) : (
+                    <><Send size={12} /> Send</>
+                  )}
+                </button>
+              </form>
+
+              {shareError && <p className="text-xs text-red-400">{shareError}</p>}
+            </div>
+
+            {/* Collaborator invite form */}
+            <div className="space-y-3">
+              <p className="text-[11px] font-black tracking-[0.15em] text-white/70 uppercase">Add collaborator</p>
+              <form onSubmit={handleInvite} className="flex gap-3">
+                <input
+                  type="email"
+                  placeholder="Invite by email..."
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="focus:border-aura-primary flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white transition-all focus:outline-none placeholder:text-white/30"
+                />
+                <button
+                  type="submit"
+                  disabled={isInviting || !email.trim()}
+                  className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-black tracking-widest text-black uppercase shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  {isInviting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                  Invite
+                </button>
+              </form>
+            </div>
 
             {error && <p className="text-xs text-red-400">{error}</p>}
 

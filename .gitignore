@@ -40,3 +40,6 @@ storybook-static/
 /.npm-only-allow
 
 /.claude
+/.agents
+/.kiro
+/skills-lock.json

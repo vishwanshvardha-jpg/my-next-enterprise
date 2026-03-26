@@ -1,7 +1,8 @@
 "use client"
 
-import { apiFetch } from "lib/api-client"
 import { iTunesTrack } from "lib/itunes"
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000"
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 const CACHE_PREFIX = "itunes_track_"
@@ -46,7 +47,9 @@ export async function lookupTracks(trackIds: number[]): Promise<Map<number, iTun
 
   if (missing.length > 0) {
     try {
-      const data = (await apiFetch(`/tracks/lookup?ids=${missing.join(",")}`)) as {
+      const res = await fetch(`${BACKEND_URL}/v1/tracks/lookup?ids=${missing.join(",")}`)
+      if (!res.ok) throw new Error("Track lookup failed")
+      const data = (await res.json()) as {
         tracks: iTunesTrack[]
       }
       data.tracks.forEach((t) => {
