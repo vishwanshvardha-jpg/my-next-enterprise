@@ -5,8 +5,10 @@ import Image from "next/image"
 import posthog from "posthog-js"
 import { useEffect, useRef, useState } from "react"
 import { usePlaybackStore, useUIStore } from "lib/store"
+import { useGuestPlayTracker } from "hooks/useGuestPlayTracker"
 
 export function NowPlayingBarV2() {
+  useGuestPlayTracker()
   const {
     currentTrack: track,
     isPlaying,

@@ -22,7 +22,11 @@ function WaveformLogo({ className }: { className?: string }) {
   )
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  onRequestSignUp?: () => void
+}
+
+export function Sidebar({ onRequestSignUp }: SidebarProps = {}) {
   const { user } = useAuth()
   const flagEnabled = useFeatureFlagEnabled("new-playlist-button-style")
   const [mounted, setMounted] = useState(false)
@@ -60,11 +64,14 @@ export function Sidebar() {
   }
 
   const handleNavClick = (id: string) => {
+    if (!user && (id === "recent" || id === "liked" || id === "playlist")) {
+      onRequestSignUp?.()
+      return
+    }
     if (id === "recent") {
       selectPlaylist("recent")
       setMobileSidebarOpen(false)
     } else if (id === "liked") {
-      if (!user) { setIsAuthOpen(true); return }
       selectPlaylist("liked")
       setMobileSidebarOpen(false)
     } else {
@@ -198,7 +205,7 @@ export function Sidebar() {
         </div>
 
         {/* ── Scrollable Playlists ── */}
-        <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2">
+        <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2" data-coachmark="playlists-section">
 
           {/* Expanded: Your Playlists + Shared Playlists */}
           {!isSidebarCollapsed && (

@@ -21,9 +21,11 @@ interface LibraryState {
   isAddingSongs: boolean;
   playlistSearchTracks: iTunesTrack[];
   isLoading: boolean;
+  isGuestMode: boolean;
 
   // Actions
   fetchInitialData: (user: AuthUser | null) => Promise<void>;
+  loadGuestPlaylist: (playlist: Playlist, tracks: iTunesTrack[]) => void;
   fetchPlaylistTracks: (id: string | 'liked' | 'library') => Promise<void>;
   selectPlaylist: (id: string | 'liked' | 'library' | 'home') => void;
   toggleLike: (track: iTunesTrack, user: AuthUser | null) => Promise<void>;
@@ -47,8 +49,21 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   isAddingSongs: false,
   playlistSearchTracks: [],
   isLoading: false,
+  isGuestMode: false,
+
+  loadGuestPlaylist: (playlist, tracks) => {
+    set({
+      isGuestMode: true,
+      playlists: [playlist],
+      activePlaylistId: playlist.id,
+      playlistTracks: tracks,
+      playlistTracksCache: { [playlist.id]: tracks },
+      currentPlaylistName: playlist.name,
+    });
+  },
 
   fetchInitialData: async (user) => {
+    if (get().isGuestMode) return;
     if (!user) {
       set({ likedSongs: [], playlists: [] });
       return;
@@ -68,6 +83,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   fetchPlaylistTracks: async (id) => {
+    if (get().isGuestMode) return;
     try {
       let tracks: (iTunesTrack & { addedAt?: string })[] = [];
 

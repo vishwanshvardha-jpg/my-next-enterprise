@@ -14,9 +14,10 @@ interface TopNavProps {
   onSearch?: (query: string) => void
   onClearSearch?: () => void
   isSearchLoading?: boolean
+  onRequestSignUp?: () => void
 }
 
-export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading }: TopNavProps) {
+export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading, onRequestSignUp }: TopNavProps) {
   const { user, signOut } = useAuth()
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [isInvitesOpen, setIsInvitesOpen] = useState(false)
@@ -46,6 +47,7 @@ export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading }: Top
       selectPlaylist("home")
       onHome?.()
     } else if (tabId === "library") {
+      if (!user) { onRequestSignUp?.(); return }
       selectPlaylist("library")
     }
   }
@@ -76,6 +78,7 @@ export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading }: Top
               return (
                 <button
                   key={tab.id}
+                  data-coachmark={tab.id === "home" ? "discover-tab" : "library-tab"}
                   onClick={() => handleTabClick(tab.id)}
                   className={`relative whitespace-nowrap px-4 py-2.5 text-[11px] font-bold tracking-[0.15em] transition-all duration-300 ${
                     tab.id === "library" ? "hidden sm:block" : ""
@@ -97,9 +100,9 @@ export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading }: Top
           {/* Right: Search + Actions */}
           <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
             {/* Search bar — desktop (shrinks before user button does) */}
-            <div className="hidden min-w-0 flex-1 sm:block" style={{ maxWidth: "18rem" }}>
+            <div className="hidden min-w-0 flex-1 sm:block" style={{ maxWidth: "18rem" }} data-coachmark="search">
               <SearchBar
-                onSearch={onSearch || (() => {})}
+                onSearch={!user && onRequestSignUp ? () => onRequestSignUp() : onSearch || (() => {})}
                 onClear={onClearSearch}
                 isLoading={isSearchLoading}
               />
@@ -107,7 +110,8 @@ export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading }: Top
 
             {/* Search icon — mobile */}
             <button
-              onClick={() => setIsMobileSearchOpen((v) => !v)}
+              data-coachmark="mobile-search"
+              onClick={() => { if (!user && onRequestSignUp) { onRequestSignUp(); return } setIsMobileSearchOpen((v) => !v) }}
               className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all sm:hidden ${
                 isMobileSearchOpen
                   ? "bg-aura-primary/15 text-aura-primary"
@@ -122,6 +126,7 @@ export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading }: Top
               <div className="flex flex-shrink-0 items-center gap-2 sm:gap-3">
                 {/* Bell — hidden on mobile */}
                 <button
+                  data-coachmark="notification-bell"
                   onClick={() => setIsInvitesOpen(true)}
                   className="relative hidden h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-all hover:bg-white/10 hover:border-white/20 sm:flex"
                   title={pendingCount > 0 ? `${pendingCount} pending invite${pendingCount !== 1 ? "s" : ""}` : "No pending invites"}
@@ -133,6 +138,20 @@ export function TopNav({ onHome, onSearch, onClearSearch, isSearchLoading }: Top
                     </span>
                   )}
                 </button>
+              </div>
+            ) : onRequestSignUp ? (
+              <button
+                data-coachmark="notification-bell"
+                onClick={onRequestSignUp}
+                className="relative hidden h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-all hover:bg-white/10 hover:border-white/20 sm:flex"
+                title="Sign up to receive invites"
+              >
+                <Bell size={16} className="text-aura-muted" />
+              </button>
+            ) : null}
+
+            {user ? (
+              <div className="flex flex-shrink-0 items-center gap-2 sm:gap-3">
 
                 {/* Full user button — desktop */}
                 <button

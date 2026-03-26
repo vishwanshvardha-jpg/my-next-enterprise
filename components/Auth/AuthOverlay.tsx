@@ -2,17 +2,18 @@
 
 import { Loader2, Lock, Mail, X } from "lucide-react"
 import posthog from "posthog-js"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { createClient } from "lib/supabase/client"
 
 interface AuthOverlayProps {
   isOpen: boolean
   onClose: () => void
+  defaultSignUp?: boolean
 }
 
-export function AuthOverlay({ isOpen, onClose }: AuthOverlayProps) {
-  const [isSignUp, setIsSignUp] = useState(false)
+export function AuthOverlay({ isOpen, onClose, defaultSignUp = false }: AuthOverlayProps) {
+  const [isSignUp, setIsSignUp] = useState(defaultSignUp)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -20,6 +21,10 @@ export function AuthOverlay({ isOpen, onClose }: AuthOverlayProps) {
   const [message, setMessage] = useState<string | null>(null)
 
   const supabase = createClient()
+
+  useEffect(() => {
+    if (isOpen) setIsSignUp(defaultSignUp)
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -93,7 +98,7 @@ export function AuthOverlay({ isOpen, onClose }: AuthOverlayProps) {
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h2>
           <p className="text-sm text-aura-muted">
-            {isSignUp ? "Join the music revolution" : "Log in to your account"}
+            {isSignUp ? "Join RepoMusic for full access" : "Log in to your account"}
           </p>
         </div>
 
