@@ -1,6 +1,7 @@
 "use client"
 
 import { AnimatePresence, motion } from "framer-motion"
+import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import { AuthOverlay } from "components/Auth/AuthOverlay"
 import { HomeView } from "components/HomeView"
@@ -84,7 +85,7 @@ export function GuestAppShell({ token }: GuestAppShellProps) {
     })
 
     return () => { cancelled = true }
-  }, [token])
+  }, [token, enterGuestMode, loadGuestPlaylist, handleSearch])
 
   if (error) {
     return (
@@ -92,12 +93,12 @@ export function GuestAppShell({ token }: GuestAppShellProps) {
         <div className="text-5xl">🔗</div>
         <h1 className="text-2xl font-bold">Link invalid or expired</h1>
         <p className="text-sm text-white/50">This share link no longer works.</p>
-        <a
+        <Link
           href="/"
           className="btn-primary mt-2 px-6 py-3 text-sm font-bold"
         >
           Create your own playlists — Sign up free
-        </a>
+        </Link>
       </div>
     )
   }

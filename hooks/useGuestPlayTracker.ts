@@ -12,5 +12,5 @@ export function useGuestPlayTracker() {
     if (currentTrack.trackId === lastTrackedId.current) return
     lastTrackedId.current = currentTrack.trackId
     incrementSongsPlayed()
-  }, [isGuest, isPlaying, currentTrack?.trackId])
+  }, [isGuest, isPlaying, currentTrack?.trackId, incrementSongsPlayed])
 }

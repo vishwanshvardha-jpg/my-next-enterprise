@@ -83,13 +83,16 @@ interface CoachmarkTourProps {
 }
 
 export function CoachmarkTour({ onRequestSignUp }: CoachmarkTourProps) {
-  const { tourStep, isTourActive, nextStep, prevStep, skipTour, startTour } = useGuestStore()
+  const { tourStep, isTourActive, nextStep, prevStep, skipTour, startTour, completeTour, dismissEndCard } = useGuestStore()
   const [spotRect, setSpotRect] = useState<SpotlightRect | null>(null)
   const [vw, setVw] = useState(0)
   const [vh, setVh] = useState(0)
   const observerRef = useRef<ResizeObserver | null>(null)
 
   const currentConfig = TOUR_STEPS.find((s) => s.step === tourStep) ?? null
+
+  const handleFinish = useCallback(() => completeTour(), [completeTour])
+  const handleDismissEndCard = useCallback(() => dismissEndCard(), [dismissEndCard])
 
   const measure = useCallback(() => {
     setVw(window.innerWidth)
@@ -151,7 +154,7 @@ export function CoachmarkTour({ onRequestSignUp }: CoachmarkTourProps) {
             Sign up free
           </button>
           <button
-            onClick={() => useGuestStore.getState().dismissEndCard()}
+            onClick={handleDismissEndCard}
             className="w-full py-2 text-sm text-white/40 transition-colors hover:text-white/70"
           >
             Maybe later
@@ -266,7 +269,7 @@ export function CoachmarkTour({ onRequestSignUp }: CoachmarkTourProps) {
             </div>
 
             <button
-              onClick={isLast ? () => useGuestStore.getState().completeTour() : nextStep}
+              onClick={isLast ? handleFinish : nextStep}
               className="flex items-center gap-1 text-[12px] font-semibold text-aura-primary transition-colors hover:text-aura-primary/80"
             >
               {isLast ? "Finish" : "Next"}

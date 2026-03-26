@@ -24,7 +24,7 @@ export function AuthOverlay({ isOpen, onClose, defaultSignUp = false }: AuthOver
 
   useEffect(() => {
     if (isOpen) setIsSignUp(defaultSignUp)
-  }, [isOpen])
+  }, [isOpen, defaultSignUp])
 
   if (!isOpen) return null
 
